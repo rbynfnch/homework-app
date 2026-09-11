@@ -1,0 +1,3690 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<title>Homework</title>
+<style>
+  html, body { margin: 0; padding: 0; background: #F3F1EC; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: contain; }
+  * { box-sizing: border-box; }
+</style>
+</head>
+<body>
+<div id="root"><div id="fallback" style="font-family:sans-serif;max-width:360px;margin:60px auto;padding:0 20px;color:#21201C;text-align:center;"><p style="font-weight:600;">Loading Homework…</p><p style="font-size:13px;color:#85837A;">If this message doesn't go away after a few seconds, this file was likely opened in a preview window instead of a full browser. Use your browser's 'Open in Safari' / 'Open in Chrome' option, or open it from a real web link instead of a file attachment.</p></div></div>
+<script crossorigin src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7/babel.min.js"></script>
+<script>
+  // All reads/writes go through /api/data (a Netlify Function), scoped
+  // server-side to the logged-in user's family. A signed session cookie
+  // (set on login/signup) is what ties requests to a family.
+  const API_BASE = "api";
+
+  window.storage = {
+    async get(key) {
+      const res = await fetch(`${API_BASE}/data?key=${encodeURIComponent(key)}`, { credentials: "include" });
+      if (res.status === 401) {
+        const err = new Error("Not logged in");
+        err.status = 401;
+        throw err;
+      }
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json.value == null ? null : { key, value: json.value, shared: true };
+    },
+    async set(key, value) {
+      const res = await fetch(`${API_BASE}/data`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key, value }),
+      });
+      if (res.status === 401) {
+        const err = new Error("Not logged in");
+        err.status = 401;
+        throw err;
+      }
+      return { key, value, shared: true };
+    },
+    async delete(key) {
+      await fetch(`${API_BASE}/data?key=${encodeURIComponent(key)}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      return { key, deleted: true, shared: true };
+    },
+    async list() {
+      // Not used by this app (a single state blob per family) but kept
+      // for interface compatibility.
+      return { keys: [], shared: true };
+    },
+  };
+
+  window.homeworkAuth = {
+    async me() {
+      const res = await fetch(`${API_BASE}/me`, { credentials: "include" });
+      if (!res.ok) return null;
+      const json = await res.json();
+      return json.user || null;
+    },
+    async login(email, password) {
+      const res = await fetch(`${API_BASE}/login`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Couldn't log in.");
+      return json.user;
+    },
+    async register(payload) {
+      const res = await fetch(`${API_BASE}/register`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Couldn't sign up.");
+      return json.user;
+    },
+    async logout() {
+      await fetch(`${API_BASE}/logout`, { method: "POST", credentials: "include" });
+    },
+  };
+</script>
+<script type="text/babel" data-presets="react">
+
+const { useState, useEffect, useLayoutEffect, useRef, useCallback } = React;
+
+function IconBase({ size = 16, color, strokeWidth = 2, style, children }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || "currentColor"} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={style}>
+      {children}
+    </svg>
+  );
+}
+function Plus(props) { return <IconBase {...props}><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></IconBase>; }
+function X(props) { return <IconBase {...props}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></IconBase>; }
+function Check(props) { return <IconBase {...props}><polyline points="20 6 9 17 4 12" /></IconBase>; }
+function ChevronRight(props) { return <IconBase {...props}><polyline points="9 6 15 12 9 18" /></IconBase>; }
+function ArrowRight(props) { return <IconBase {...props}><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></IconBase>; }
+function ArrowLeft(props) { return <IconBase {...props}><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></IconBase>; }
+function Trash2(props) { return <IconBase {...props}><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></IconBase>; }
+function CalendarDays(props) { return <IconBase {...props}><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></IconBase>; }
+function Repeat(props) { return <IconBase {...props}><path d="M17 2l4 4-4 4" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><path d="M7 22l-4-4 4-4" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></IconBase>; }
+function StickyNote(props) { return <IconBase {...props}><path d="M15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10l6-6V5a2 2 0 0 0-2-2z" /><path d="M15 3v6h6" /></IconBase>; }
+function Layers(props) { return <IconBase {...props}><polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" /></IconBase>; }
+function Sparkles(props) { return <IconBase {...props}><path d="M12 2l1.8 5.6L19 9l-5.2 1.4L12 16l-1.8-5.6L5 9l5.2-1.4L12 2z" /></IconBase>; }
+function GripVertical(props) { return <IconBase {...props} strokeWidth={0} fill={props.color || "currentColor"}><circle cx="9" cy="5" r="1.3" /><circle cx="9" cy="12" r="1.3" /><circle cx="9" cy="19" r="1.3" /><circle cx="15" cy="5" r="1.3" /><circle cx="15" cy="12" r="1.3" /><circle cx="15" cy="19" r="1.3" /></IconBase>; }
+function Settings2(props) { return <IconBase {...props}><line x1="7" y1="4" x2="7" y2="10" /><circle cx="7" cy="13" r="2" /><line x1="7" y1="15" x2="7" y2="20" /><line x1="12" y1="4" x2="12" y2="7" /><circle cx="12" cy="10" r="2" /><line x1="12" y1="12" x2="12" y2="20" /><line x1="17" y1="4" x2="17" y2="14" /><circle cx="17" cy="17" r="2" /><line x1="17" y1="19" x2="17" y2="20" /></IconBase>; }
+function SkipForward(props) { return <IconBase {...props} fill={props.color || "currentColor"} strokeWidth={0}><polygon points="5 4 15 12 5 20 5 4" /><rect x="18" y="4" width="2.5" height="16" rx="1" /></IconBase>; }
+function Zap(props) { return <IconBase {...props} fill={props.color || "currentColor"} strokeWidth={0}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></IconBase>; }
+function Sun(props) { return <IconBase {...props}><circle cx="12" cy="12" r="4" /><line x1="12" y1="2" x2="12" y2="4" /><line x1="12" y1="20" x2="12" y2="22" /><line x1="4" y1="12" x2="2" y2="12" /><line x1="22" y1="12" x2="20" y2="12" /><line x1="5" y1="5" x2="6.5" y2="6.5" /><line x1="17.5" y1="17.5" x2="19" y2="19" /><line x1="5" y1="19" x2="6.5" y2="17.5" /><line x1="17.5" y1="6.5" x2="19" y2="5" /></IconBase>; }
+function ClipboardList(props) { return <IconBase {...props}><rect x="8" y="2" width="8" height="4" rx="1" /><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3" /><line x1="8" y1="11" x2="16" y2="11" /><line x1="8" y1="15" x2="16" y2="15" /><line x1="8" y1="19" x2="12" y2="19" /></IconBase>; }
+function ClipboardCheck(props) { return <IconBase {...props}><rect x="8" y="2" width="8" height="4" rx="1" /><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3" /><path d="M9 14l2 2 4-4" /></IconBase>; }
+function Pencil(props) { return <IconBase {...props}><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></IconBase>; }
+function LogOut(props) { return <IconBase {...props}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></IconBase>; }
+function Palette(props) { return <IconBase {...props}><path d="M12 2a10 10 0 1 0 0 20 2.5 2.5 0 0 0 1.8-4.3c-.5-.5-.3-1.4.4-1.6a4 4 0 0 0 2.8-3.8c0-4.4-4.5-8-9-8Z" /><circle cx="7.5" cy="11.5" r="1.2" /><circle cx="10.5" cy="7.5" r="1.2" /><circle cx="15" cy="8" r="1.2" /><circle cx="16.5" cy="12.5" r="1.2" /></IconBase>; }
+
+
+const PALETTE = {
+  teal:   { bg: "#E4F0EE", solid: "#2B6F6A", text: "#1D4B47" },
+  indigo: { bg: "#E7E6F5", solid: "#4B4A9E", text: "#33326B" },
+  coral:  { bg: "#FBE7E2", solid: "#D1493B", text: "#93342A" },
+  amber:  { bg: "#FBEEDA", solid: "#C1852A", text: "#805A1C" },
+  moss:   { bg: "#E7EFDA", solid: "#5C7A3A", text: "#3E541F" },
+  plum:   { bg: "#F1E4EE", solid: "#8B4B7C", text: "#623356" },
+  sky:    { bg: "#E1EEF6", solid: "#2E7AA6", text: "#1F5573" },
+  clay:   { bg: "#F3E7DC", solid: "#B06B3A", text: "#7A4726" },
+};
+const PALETTE_KEYS = Object.keys(PALETTE);
+const TONE_COLOR = { danger: "var(--danger)", warn: "var(--warn)", neutral: "var(--ink-soft)" };
+
+const THEME_GROUP_ORDER = ["Classic", "School Colors", "Boho Neutral", "Happy Kid Colors", "Colorblind Friendly"];
+
+const THEME_PRESETS = [
+  { id: "classic", group: "Classic", name: "Classic Teal", paper: "#F3F1EC", card: "#FFFFFF", ink: "#21201C", inkSoft: "#85837A", line: "#E4E1D6", accent: "#2B6F6A", accentSoft: "#E4F0EE" },
+
+  { id: "navy-gold", group: "School Colors", name: "Navy & Gold", paper: "#F1F2F5", card: "#FFFFFF", ink: "#1E2430", inkSoft: "#767F91", line: "#DEE2EA", accent: "#1B3A6B", accentSoft: "#E6ECF6" },
+  { id: "maroon-cream", group: "School Colors", name: "Maroon & Cream", paper: "#F6F1ED", card: "#FFFFFF", ink: "#2C1A1D", inkSoft: "#8C7A79", line: "#E9DEDA", accent: "#7A1F2B", accentSoft: "#F5E5E3" },
+  { id: "forest-gold", group: "School Colors", name: "Forest Green & Gold", paper: "#F1F2EC", card: "#FFFFFF", ink: "#1D2A1E", inkSoft: "#7B8577", line: "#E1E6DA", accent: "#1E5631", accentSoft: "#E4EFE3" },
+  { id: "crimson-black", group: "School Colors", name: "Crimson & Black", paper: "#F2F1F1", card: "#FFFFFF", ink: "#211D1E", inkSoft: "#83797A", line: "#E4E0E0", accent: "#A71930", accentSoft: "#F2E1E4" },
+  { id: "royal-orange", group: "School Colors", name: "Royal Blue & Orange", paper: "#F1F3F6", card: "#FFFFFF", ink: "#1B2430", inkSoft: "#7A8393", line: "#E1E6EC", accent: "#1857A4", accentSoft: "#E5EEF9" },
+  { id: "purple-gold", group: "School Colors", name: "Purple & Gold", paper: "#F3F1F5", card: "#FFFFFF", ink: "#251C2C", inkSoft: "#877E8E", line: "#E7E1EB", accent: "#5B2A86", accentSoft: "#EEE5F5" },
+
+  { id: "terracotta-sand", group: "Boho Neutral", name: "Terracotta & Sand", paper: "#F5F0E8", card: "#FFFDF9", ink: "#3B332C", inkSoft: "#8A7F72", line: "#E8DFD2", accent: "#B4674E", accentSoft: "#F3E7DE" },
+  { id: "sage-cream", group: "Boho Neutral", name: "Sage & Cream", paper: "#F5F3EA", card: "#FFFEFA", ink: "#333229", inkSoft: "#847F6F", line: "#E5E3D5", accent: "#6B7F5E", accentSoft: "#E9EFE2" },
+  { id: "clay-ivory", group: "Boho Neutral", name: "Clay & Ivory", paper: "#F6F1EA", card: "#FFFCF7", ink: "#3A2E27", inkSoft: "#8D8174", line: "#EAE0D3", accent: "#A6673B", accentSoft: "#F2E5D6" },
+
+  { id: "bubblegum", group: "Happy Kid Colors", name: "Bubblegum Pop", paper: "#FFF6FA", card: "#FFFFFF", ink: "#33232A", inkSoft: "#8C7A83", line: "#F5DFE9", accent: "#E8558D", accentSoft: "#FCE6EF" },
+  { id: "sherbet", group: "Happy Kid Colors", name: "Sunshine Sherbet", paper: "#FFF8EE", card: "#FFFFFF", ink: "#332A1C", inkSoft: "#8C8071", line: "#F5E7D2", accent: "#F2872E", accentSoft: "#FDEBD9" },
+  { id: "grape-fizz", group: "Happy Kid Colors", name: "Grape Fizz", paper: "#F8F3FF", card: "#FFFFFF", ink: "#2B2233", inkSoft: "#867B93", line: "#E9E0F5", accent: "#8B4FD6", accentSoft: "#EFE3FB" },
+
+  { id: "cb-blue-orange", group: "Colorblind Friendly", name: "Blue & Orange", paper: "#F2F4F6", card: "#FFFFFF", ink: "#1E2126", inkSoft: "#7B828C", line: "#E1E5EA", accent: "#0072B2", accentSoft: "#DCEAF5" },
+  { id: "cb-sky-amber", group: "Colorblind Friendly", name: "Sky & Amber", paper: "#F2F5F6", card: "#FFFFFF", ink: "#1E2226", inkSoft: "#7C838C", line: "#E1E6EA", accent: "#0091C2", accentSoft: "#DFF0F8" },
+  { id: "cb-teal-vermillion", group: "Colorblind Friendly", name: "Bluish Green & Vermillion", paper: "#F1F5F3", card: "#FFFFFF", ink: "#1D2420", inkSoft: "#79847E", line: "#DFE7E2", accent: "#009E73", accentSoft: "#DBF0E8" },
+];
+
+function getTheme(themeId) {
+  return THEME_PRESETS.find((t) => t.id === themeId) || THEME_PRESETS[0];
+}
+
+function themeToCssVars(t) {
+  return {
+    "--paper": t.paper,
+    "--card": t.card,
+    "--ink": t.ink,
+    "--ink-soft": t.inkSoft,
+    "--line": t.line,
+    "--accent": t.accent,
+    "--accent-soft": t.accentSoft,
+  };
+}
+
+const DAY_CODES = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+const DAY_JS_INDEX = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
+const DAY_LABELS = { MO: "M", TU: "T", WE: "W", TH: "T", FR: "F", SA: "S", SU: "S" };
+const DAY_NAMES = { MO: "Mon", TU: "Tue", WE: "Wed", TH: "Thu", FR: "Fri", SA: "Sat", SU: "Sun" };
+
+function noRepeat() {
+  return { freq: "none", interval: 1, byDay: [], endType: "never", endCount: null, completedCount: 0 };
+}
+
+// Accepts either the old string-enum shape (from previously saved data) or the current object shape,
+// and always returns the current object shape.
+function migrateRepeat(old) {
+  const base = noRepeat();
+  if (!old || old === "none") return base;
+  if (typeof old === "object") return { ...base, ...old };
+  if (old === "daily") return { ...base, freq: "day", interval: 1 };
+  if (old === "weekdays") return { ...base, freq: "week", interval: 1, byDay: ["MO", "TU", "WE", "TH", "FR"] };
+  if (old === "weekly") return { ...base, freq: "week", interval: 1 };
+  if (old === "biweekly") return { ...base, freq: "week", interval: 2 };
+  if (old === "monthly") return { ...base, freq: "month", interval: 1 };
+  if (old === "yearly") return { ...base, freq: "year", interval: 1 };
+  const legacyWeekday = { "weekly-sun": "SU", "weekly-mon": "MO", "weekly-tue": "TU", "weekly-wed": "WE", "weekly-thu": "TH", "weekly-fri": "FR", "weekly-sat": "SA" };
+  if (legacyWeekday[old]) return { ...base, freq: "week", interval: 1, byDay: [legacyWeekday[old]] };
+  return base;
+}
+
+function ordinalSuffix(n) {
+  if (n % 10 === 1 && n % 100 !== 11) return "st";
+  if (n % 10 === 2 && n % 100 !== 12) return "nd";
+  if (n % 10 === 3 && n % 100 !== 13) return "rd";
+  return "th";
+}
+function ordinal(n) {
+  return `${n}${ordinalSuffix(n)}`;
+}
+
+function describeRepeat(repeat, deadline) {
+  if (!repeat || repeat.freq === "none") return null;
+  const n = Math.max(1, repeat.interval || 1);
+  const unitWord = { day: "day", week: "week", month: "month", year: "year" }[repeat.freq];
+  let base;
+  if (repeat.freq === "week" && repeat.byDay && repeat.byDay.length > 0) {
+    const days = repeat.byDay.map((c) => DAY_NAMES[c]).join(", ");
+    base = n === 1 ? `Every week on ${days}` : `Every ${n} weeks on ${days}`;
+  } else if (repeat.freq === "month" && deadline) {
+    const day = Number(deadline.slice(8, 10));
+    const dayLabel = `the ${ordinal(day)}`;
+    base = n === 1 ? `Every month on ${dayLabel}` : `Every ${n} months on ${dayLabel}`;
+  } else if (repeat.freq === "year" && deadline) {
+    const d = new Date(deadline + "T00:00:00");
+    const monthName = d.toLocaleDateString("en-US", { month: "long" });
+    const dateLabel = `${monthName} ${ordinal(d.getDate())}`;
+    base = n === 1 ? `Every year on ${dateLabel}` : `Every ${n} years on ${dateLabel}`;
+  } else {
+    base = n === 1 ? `Every ${unitWord}` : `Every ${n} ${unitWord}s`;
+  }
+  if (repeat.endType === "count" && repeat.endCount) {
+    base += `, ${repeat.endCount}x`;
+  }
+  return base;
+}
+
+const uid = () => Math.random().toString(36).slice(2, 10);
+const todayStr = () => new Date().toISOString().slice(0, 10);
+
+function greetingText() {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function playDing() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = "sine";
+    o.frequency.setValueAtTime(880, ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.09);
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.22, ctx.currentTime + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.32);
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.start();
+    o.stop(ctx.currentTime + 0.34);
+  } catch {
+    // audio not available — fail silently
+  }
+}
+
+function playBump() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = "sine";
+    o.frequency.setValueAtTime(220, ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(130, ctx.currentTime + 0.09);
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.13, ctx.currentTime + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.17);
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.start();
+    o.stop(ctx.currentTime + 0.19);
+  } catch {
+    // audio not available — fail silently
+  }
+}
+
+function playCelebrate() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const notes = [523.25, 659.25, 783.99, 1046.5];
+    notes.forEach((freq, i) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "sine";
+      const t0 = ctx.currentTime + i * 0.1;
+      o.frequency.setValueAtTime(freq, t0);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.22, t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.3);
+      o.connect(g);
+      g.connect(ctx.destination);
+      o.start(t0);
+      o.stop(t0 + 0.32);
+    });
+  } catch {
+    // audio not available — fail silently
+  }
+}
+
+const TASK_CELEBRATIONS = [
+  "Nice work! 🎉",
+  "Assignment done! ✨",
+  "Boom — knocked out! 💪",
+  "One less thing to worry about.",
+  "Crushed it! 🙌",
+  "That's progress!",
+  "You're on a roll! 🔥",
+  "Nailed it! 🎯",
+  "Great job! 👏",
+];
+
+const SUBJECT_CELEBRATIONS = [
+  (name) => `${name} is all caught up! 🎉`,
+  (name) => `Nothing left in ${name}! 🏆`,
+  (name) => `You cleared every ${name} assignment! 🥳`,
+  (name) => `${name} — fully done! ⭐`,
+  (name) => `${name} is officially wrapped up! 🙌`,
+];
+
+const CONFETTI_COLORS = PALETTE_KEYS.map((k) => PALETTE[k].solid);
+
+// Finds the next date matching one of the given weekday codes, strictly after baseDateStr.
+function nextMatchingWeekday(baseDateStr, byDayCodes) {
+  const base = baseDateStr ? new Date(baseDateStr + "T00:00:00") : new Date(todayStr() + "T00:00:00");
+  const targets = byDayCodes.map((c) => DAY_JS_INDEX[c]);
+  const d = new Date(base);
+  d.setDate(d.getDate() + 1);
+  for (let i = 0; i < 8; i++) {
+    if (targets.includes(d.getDay())) return d.toISOString().slice(0, 10);
+    d.setDate(d.getDate() + 1);
+  }
+  return d.toISOString().slice(0, 10);
+}
+
+function addRepeatInterval(dateStr, repeat) {
+  const n = Math.max(1, repeat.interval || 1);
+  if (repeat.freq === "week" && repeat.byDay && repeat.byDay.length > 0) {
+    return nextMatchingWeekday(dateStr, repeat.byDay);
+  }
+  const d = dateStr ? new Date(dateStr + "T00:00:00") : new Date();
+  if (repeat.freq === "day") d.setDate(d.getDate() + n);
+  else if (repeat.freq === "week") d.setDate(d.getDate() + 7 * n);
+  else if (repeat.freq === "month") d.setMonth(d.getMonth() + n);
+  else if (repeat.freq === "year") d.setFullYear(d.getFullYear() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+// For a fresh task with no deadline set yet, if specific weekdays were chosen, default the
+// deadline to the soonest matching day so the recurrence has somewhere to start from.
+function initialDeadlineForRepeat(repeat) {
+  if (repeat.freq === "week" && repeat.byDay && repeat.byDay.length > 0) {
+    const today = new Date(todayStr() + "T00:00:00");
+    if (repeat.byDay.includes(DAY_CODES[(today.getDay() + 6) % 7])) return todayStr();
+    return nextMatchingWeekday(todayStr(), repeat.byDay);
+  }
+  return null;
+}
+
+function deadlineInfo(deadline) {
+  if (!deadline) return null;
+  const today = new Date(todayStr() + "T00:00:00");
+  const due = new Date(deadline + "T00:00:00");
+  const diffDays = Math.round((due - today) / 86400000);
+  if (diffDays < 0) return { label: `${Math.abs(diffDays)}d overdue`, tone: "danger" };
+  if (diffDays === 0) return { label: "Due today", tone: "danger" };
+  if (diffDays === 1) return { label: "Due tomorrow", tone: "warn" };
+  if (diffDays <= 6) return { label: `Due in ${diffDays}d`, tone: "neutral" };
+  const opts = { month: "short", day: "numeric" };
+  return { label: due.toLocaleDateString(undefined, opts), tone: "neutral" };
+}
+
+function seedState() {
+  const catSchool = uid(), catAlg = uid(), catBio = uid(), catEng = uid(), catHist = uid();
+  const mk = (categoryId, title, extra = {}) => ({
+    id: uid(), categoryId, title, notes: "", deadline: null, repeat: noRepeat(), createdAt: Date.now(), ...extra,
+  });
+  const t1 = mk(catAlg, "Finish problem set 4", { notes: "Focus on the factoring section, skip the word problems for now.", deadline: addRepeatInterval(todayStr(), { freq: "week", interval: 1, byDay: [] }) });
+  const t2 = mk(catAlg, "Read chapter 6");
+  const t3 = mk(catAlg, "Review for quiz");
+  const b1 = mk(catBio, "Lab report — cell division", { deadline: todayStr() });
+  const b2 = mk(catBio, "Read chapter 3");
+  const e1 = mk(catEng, "Read Act 2 of the play");
+  const e2 = mk(catEng, "Draft essay outline");
+  const e3 = mk(catEng, "Vocabulary worksheet", { deadline: todayStr() });
+  const h1 = mk(catHist, "Timeline project", { notes: "Cover 1900–1950." });
+  const h2 = mk(catHist, "Read chapter 9 & take notes");
+  const tasks = {};
+  [t1, t2, t3, b1, b2, e1, e2, e3, h1, h2].forEach((t) => (tasks[t.id] = t));
+  const u1 = { id: uid(), categoryId: null, title: "Ask about make-up quiz", notes: "", deadline: null, repeat: noRepeat(), createdAt: Date.now() };
+  tasks[u1.id] = u1;
+  return {
+    categories: [
+      { id: catSchool, name: "School", color: "sky", visible: true, queue: [], parentId: null },
+      { id: catAlg, name: "Algebra II", color: "sky", visible: true, queue: [t1.id, t2.id, t3.id], parentId: catSchool },
+      { id: catBio, name: "Biology", color: "plum", visible: true, queue: [b1.id, b2.id], parentId: catSchool },
+      { id: catEng, name: "English", color: "moss", visible: true, queue: [e1.id, e2.id, e3.id], parentId: null },
+      { id: catHist, name: "History", color: "coral", visible: true, queue: [h1.id, h2.id], parentId: null },
+    ],
+    tasks,
+    uncategorized: [u1.id],
+    completedLog: [],
+    lastSeenDate: null,
+    completedRetentionDays: 60,
+    themeId: "classic",
+  };
+}
+
+function buildTodayEntries(categories) {
+  const topLevel = categories.filter((c) => !c.parentId);
+  const entries = [];
+  topLevel.forEach((cat) => {
+    const kids = categories.filter((c) => c.parentId === cat.id);
+    if (kids.length === 0) {
+      if (cat.visible) entries.push({ id: cat.id, name: cat.name, type: "leaf", category: cat });
+    } else {
+      const visibleKids = kids.filter((k) => k.visible);
+      if (visibleKids.length > 0) entries.push({ id: cat.id, name: cat.name, type: "group", category: cat, children: visibleKids });
+    }
+  });
+  return entries;
+}
+
+const LONG_PRESS_MS = 350;
+const PRESS_CANCEL_PX = 10;
+
+const STORAGE_KEY = "today-app-state-v2";
+
+function AuthGate() {
+  const [status, setStatus] = useState("checking"); // checking | authed | anon
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    window.homeworkAuth
+      .me()
+      .then((u) => {
+        if (cancelled) return;
+        if (u) {
+          setCurrentUser(u);
+          setStatus("authed");
+        } else {
+          setStatus("anon");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setStatus("anon");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleAuthed = (user) => {
+    setCurrentUser(user);
+    setStatus("authed");
+  };
+
+  const handleLogout = async () => {
+    try {
+      await window.homeworkAuth.logout();
+    } catch {
+      // fall through — clear local state regardless
+    }
+    setCurrentUser(null);
+    setStatus("anon");
+  };
+
+  if (status === "checking") {
+    return (
+      <Shell>
+        <style>{FONT_IMPORT}</style>
+        <div style={{ padding: "3rem 1rem", textAlign: "center", color: "var(--ink-soft)" }}>Loading…</div>
+      </Shell>
+    );
+  }
+
+  if (status === "anon") {
+    return <AuthScreen onAuthed={handleAuthed} />;
+  }
+
+  return <TodayApp currentUser={currentUser} onLogout={handleLogout} />;
+}
+
+function AuthScreen({ onAuthed }) {
+  const [tab, setTab] = useState("login");
+  return (
+    <Shell>
+      <style>{FONT_IMPORT}</style>
+      <div className="authWrap">
+        <div className="onboardIcon" style={{ margin: "6px auto 14px" }}>
+          <Sparkles size={22} />
+        </div>
+        <h1 className="onboardTitle" style={{ fontSize: 27, marginBottom: 6 }}>Homework</h1>
+        <p className="onboardBody" style={{ marginBottom: 22 }}>
+          One shared account for the whole family — parents and students log in separately and see the same list.
+        </p>
+        <div className="authTabs">
+          <button className={"authTab" + (tab === "login" ? " authTabActive" : "")} onClick={() => setTab("login")}>Log in</button>
+          <button className={"authTab" + (tab === "signup" ? " authTabActive" : "")} onClick={() => setTab("signup")}>Sign up</button>
+        </div>
+        {tab === "login" ? <LoginForm onAuthed={onAuthed} /> : <SignupForm onAuthed={onAuthed} />}
+      </div>
+    </Shell>
+  );
+}
+
+function LoginForm({ onAuthed }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (busy) return;
+    setError("");
+    if (!email.trim() || !password) {
+      setError("Enter your email and password.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const user = await window.homeworkAuth.login(email.trim(), password);
+      onAuthed(user);
+    } catch (err) {
+      setError(err.message || "Couldn't log in.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="authForm">
+      <label className="fieldLabel">Email</label>
+      <input className="textInput" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} />
+      <label className="fieldLabel">Password</label>
+      <input className="textInput" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+      {error && <p className="errorText">{error}</p>}
+      <button className="primaryBtn" type="submit" disabled={busy}>{busy ? "Logging in…" : "Log in"}</button>
+    </form>
+  );
+}
+
+function SignupForm({ onAuthed }) {
+  const [mode, setMode] = useState("create"); // create | join
+  const [role, setRole] = useState("parent");
+  const [displayName, setDisplayName] = useState("");
+  const [familyName, setFamilyName] = useState("");
+  const [familyCode, setFamilyCode] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [createdCode, setCreatedCode] = useState(null);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (busy) return;
+    setError("");
+    if (!displayName.trim() || !email.trim() || password.length < 6) {
+      setError("Fill in your name, email, and a password of at least 6 characters.");
+      return;
+    }
+    if (mode === "join" && !familyCode.trim()) {
+      setError("Enter the family code you were given.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const payload = { mode, role, displayName: displayName.trim(), email: email.trim(), password };
+      if (mode === "create") payload.familyName = familyName.trim();
+      if (mode === "join") payload.familyCode = familyCode.trim();
+      const user = await window.homeworkAuth.register(payload);
+      if (mode === "create") setCreatedCode(user.familyCode);
+      else onAuthed(user);
+    } catch (err) {
+      setError(err.message || "Couldn't sign up.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (createdCode) {
+    return (
+      <div className="familyCodeReveal">
+        <p className="emptyTitle" style={{ marginBottom: 8 }}>You're all set. Here's your family code:</p>
+        <p className="familyCodeBig">{createdCode}</p>
+        <p className="emptyBody" style={{ padding: 0 }}>
+          Share this with your student (or co-parent) — when they sign up, they'll choose "Join a family" and enter this code to land in the same shared list.
+        </p>
+        <button className="primaryBtn" onClick={() => window.location.reload()}>Continue to Homework</button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={submit} className="authForm">
+      <div className="authTabs authTabsSecondary">
+        <button type="button" className={"authTab" + (mode === "create" ? " authTabActive" : "")} onClick={() => setMode("create")}>Create a family</button>
+        <button type="button" className={"authTab" + (mode === "join" ? " authTabActive" : "")} onClick={() => setMode("join")}>Join a family</button>
+      </div>
+
+      <label className="fieldLabel">I am a…</label>
+      <div className="filterRow" style={{ marginBottom: 4 }}>
+        <button type="button" className={"filterBtn" + (role === "parent" ? " filterBtnActive" : "")} onClick={() => setRole("parent")}>Parent</button>
+        <button type="button" className={"filterBtn" + (role === "student" ? " filterBtnActive" : "")} onClick={() => setRole("student")}>Student</button>
+      </div>
+
+      <label className="fieldLabel">Your name</label>
+      <input className="textInput" value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="e.g. Jamie" />
+
+      {mode === "create" ? (
+        <>
+          <label className="fieldLabel">Family name (optional)</label>
+          <input className="textInput" value={familyName} onChange={(e) => setFamilyName(e.target.value)} placeholder="e.g. The Smiths" />
+        </>
+      ) : (
+        <>
+          <label className="fieldLabel">Family code</label>
+          <input
+            className="textInput"
+            style={{ textTransform: "uppercase" }}
+            value={familyCode}
+            onChange={(e) => setFamilyCode(e.target.value.toUpperCase())}
+            placeholder="e.g. 7QQMPX"
+          />
+        </>
+      )}
+
+      <label className="fieldLabel">Email</label>
+      <input className="textInput" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} />
+      <label className="fieldLabel">Password</label>
+      <input
+        className="textInput"
+        type="password"
+        autoComplete="new-password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        placeholder="At least 6 characters"
+      />
+
+      {error && <p className="errorText">{error}</p>}
+      <button className="primaryBtn" type="submit" disabled={busy}>
+        {busy ? "Creating account…" : mode === "create" ? "Create family & sign up" : "Join family"}
+      </button>
+    </form>
+  );
+}
+
+function ThemeModal({ currentThemeId, onSelect, onClose }) {
+  return (
+    <Sheet title="Color scheme" onClose={onClose}>
+      <p className="sheetHint">Pick a look for the whole family — everyone signed into this family sees the same colors.</p>
+      {THEME_GROUP_ORDER.map((group) => (
+        <div key={group} className="themeGroup">
+          <p className="themeGroupLabel">{group}</p>
+          <div className="themeList">
+            {THEME_PRESETS.filter((t) => t.group === group).map((t) => {
+              const active = t.id === currentThemeId;
+              return (
+                <button
+                  key={t.id}
+                  className={"themeRow" + (active ? " themeRowActive" : "")}
+                  onClick={() => onSelect(t.id)}
+                  style={active ? { borderColor: t.accent } : undefined}
+                >
+                  <span className="themeSwatchPair">
+                    <span style={{ background: t.accent }} />
+                    <span style={{ background: t.accentSoft }} />
+                    <span style={{ background: t.paper }} />
+                  </span>
+                  <span className="themeRowName">{t.name}</span>
+                  {active && <Check size={16} color={t.accent} />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </Sheet>
+  );
+}
+
+function AccountModal({ currentUser, onClose, onLogout }) {
+  const [copied, setCopied] = useState(false);
+
+  const copyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(currentUser.familyCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // clipboard not available — the code is still shown on screen
+    }
+  };
+
+  return (
+    <Sheet title="Account" onClose={onClose}>
+      <div className="manageCatHead" style={{ marginBottom: 4 }}>
+        <span className="avatarInitial avatarInitialLg">{(currentUser.displayName || "?").trim().charAt(0).toUpperCase()}</span>
+        <div>
+          <p style={{ margin: 0, fontWeight: 600, fontSize: 15 }}>{currentUser.displayName}</p>
+          <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink-soft)", textTransform: "capitalize" }}>
+            {currentUser.role} · {currentUser.familyName}
+          </p>
+        </div>
+      </div>
+
+      <p className="fieldLabel" style={{ marginTop: 18 }}>Family code</p>
+      <div className="backupRow" style={{ marginTop: 4 }}>
+        <div className="familyCodeChip">{currentUser.familyCode}</div>
+        <button className="ghostBtn" style={{ marginTop: 0, flex: "none" }} onClick={copyCode}>{copied ? "Copied!" : "Copy"}</button>
+      </div>
+      <p className="emptyBody" style={{ textAlign: "left", padding: 0, margin: "8px 0 0" }}>
+        Share this code with your {currentUser.role === "parent" ? "student or co-parent" : "parent"} so they can log in and see this same shared homework list.
+      </p>
+
+      <button className="dangerLink" style={{ marginTop: 22 }} onClick={onLogout}>
+        <LogOut size={14} /> Log out
+      </button>
+    </Sheet>
+  );
+}
+
+function TodayApp({ currentUser, onLogout }) {
+  const [state, setState] = useState(null);
+  const [loaded, setLoaded] = useState(false);
+  const [modal, setModal] = useState(null);
+  const [pendingUndo, setPendingUndo] = useState(null);
+  const [celebration, setCelebration] = useState(null);
+  const [showGreeting, setShowGreeting] = useState(false);
+  const [pendingDragId, setPendingDragId] = useState(null);
+  const [draggingId, setDraggingId] = useState(null);
+  const [allTasksHidden, setAllTasksHidden] = useState(() => new Set());
+  const [, forceDragTick] = useState(0);
+  const saveTimer = useRef(null);
+  const undoTimer = useRef(null);
+  const celebrationTimer = useRef(null);
+  const dragRef = useRef(null);
+  const dropZoneRefs = useRef({});
+  const rowDropZoneRefs = useRef({});
+  const pendingDragRef = useRef(null);
+  const pressTimerRef = useRef(null);
+
+  const scheduleSave = useCallback((next) => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      try {
+        await window.storage.set(STORAGE_KEY, JSON.stringify(next), false);
+      } catch {
+        // silent — will retry on next change
+      }
+    }, 250);
+  }, []);
+
+  const persist = useCallback((next) => {
+    setState(next);
+    scheduleSave(next);
+  }, [scheduleSave]);
+
+  const loadExample = () => persist(seedState());
+  const startEmpty = () => persist({ categories: [], tasks: {}, uncategorized: [], completedLog: [], lastSeenDate: null, completedRetentionDays: 60, themeId: "classic" });
+
+  const setTheme = (themeId) => {
+    persist({ ...state, themeId });
+  };
+
+  const triggerCelebration = (type, subjectName) => {
+    if (celebrationTimer.current) clearTimeout(celebrationTimer.current);
+    if (type === "subject") {
+      const pick = SUBJECT_CELEBRATIONS[Math.floor(Math.random() * SUBJECT_CELEBRATIONS.length)];
+      setCelebration({ id: uid(), type: "subject", title: pick(subjectName) });
+      playCelebrate();
+      if (navigator.vibrate) navigator.vibrate([15, 60, 15, 60, 30]);
+      celebrationTimer.current = setTimeout(() => setCelebration(null), 3400);
+    } else {
+      const pick = TASK_CELEBRATIONS[Math.floor(Math.random() * TASK_CELEBRATIONS.length)];
+      setCelebration({ id: uid(), type: "task", title: pick });
+      celebrationTimer.current = setTimeout(() => setCelebration(null), 2000);
+    }
+  };
+
+  const completeTask = (categoryId, taskId) => {
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+    setState((prev) => {
+      const cat = prev.categories.find((c) => c.id === categoryId);
+      if (!cat) return prev;
+      const task = prev.tasks[taskId];
+      const newQueue = cat.queue.filter((id) => id !== taskId);
+      const nextTasks = { ...prev.tasks };
+      let cloneId = null;
+      const rep = task.repeat && typeof task.repeat === "object" ? task.repeat : noRepeat();
+      if (rep.freq !== "none") {
+        const doneCount = (rep.completedCount || 0) + 1;
+        const exhausted = rep.endType === "count" && rep.endCount && doneCount >= rep.endCount;
+        if (!exhausted) {
+          const clone = {
+            ...task,
+            id: uid(),
+            deadline: task.deadline ? addRepeatInterval(task.deadline, rep) : null,
+            repeat: { ...rep, completedCount: doneCount },
+            createdAt: Date.now(),
+          };
+          nextTasks[clone.id] = clone;
+          newQueue.push(clone.id);
+          cloneId = clone.id;
+        }
+      }
+      delete nextTasks[taskId];
+      const nextCats = prev.categories.map((c) => (c.id === categoryId ? { ...c, queue: newQueue } : c));
+      const logEntry = { id: uid(), taskId, title: task.title, categoryId, categoryName: cat.name, categoryColor: cat.color, completedAt: Date.now() };
+      const nextLog = [logEntry, ...prev.completedLog];
+      const next = { ...prev, categories: nextCats, tasks: nextTasks, completedLog: nextLog };
+      scheduleSave(next);
+      setPendingUndo({ categoryId, taskId, task, cloneId, logEntryId: logEntry.id });
+      triggerCelebration(newQueue.length === 0 ? "subject" : "task", cat.name);
+      return next;
+    });
+    undoTimer.current = setTimeout(() => setPendingUndo(null), 5000);
+  };
+
+  const undoComplete = () => {
+    if (!pendingUndo) return;
+    const { categoryId, taskId, task, cloneId, logEntryId } = pendingUndo;
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+    if (celebrationTimer.current) clearTimeout(celebrationTimer.current);
+    setCelebration(null);
+    setState((prev) => {
+      const nextTasks = { ...prev.tasks, [taskId]: task };
+      if (cloneId) delete nextTasks[cloneId];
+      const nextCats = prev.categories.map((c) => {
+        if (c.id !== categoryId) return c;
+        const q = c.queue.filter((id) => id !== cloneId);
+        return { ...c, queue: [taskId, ...q] };
+      });
+      const nextLog = prev.completedLog.filter((e) => e.id !== logEntryId);
+      const next = { ...prev, categories: nextCats, tasks: nextTasks, completedLog: nextLog };
+      scheduleSave(next);
+      return next;
+    });
+    setPendingUndo(null);
+  };
+
+  const moveToBottom = (categoryId, taskId) => {
+    persist({ ...state, categories: state.categories.map((c) => (c.id === categoryId ? { ...c, queue: [...c.queue.filter((id) => id !== taskId), taskId] } : c)) });
+  };
+
+  const handleSkip = (categoryId, task) => {
+    if (task.deadline) {
+      setModal({ type: "skipDeadline", categoryId, task });
+    } else {
+      moveToBottom(categoryId, task.id);
+    }
+  };
+
+  const updateTask = (taskId, updates) => {
+    const nextTasks = { ...state.tasks, [taskId]: { ...state.tasks[taskId], ...updates } };
+    persist({ ...state, tasks: nextTasks });
+  };
+
+  const saveTaskEdits = (taskId, { title, deadline, repeat, notes, categoryId, newCategoryName, newCategoryColor, newCategoryParentId }) => {
+    const task = state.tasks[taskId];
+    if (!task) return;
+
+    let cats = state.categories;
+    let targetCategoryId = categoryId;
+    if (newCategoryName) {
+      const newId = uid();
+      cats = [...cats, { id: newId, name: newCategoryName, color: newCategoryColor, visible: true, queue: [], parentId: newCategoryParentId || null }];
+      targetCategoryId = newId;
+    }
+
+    const currentCategoryId = task.categoryId ?? null;
+    let nextUncategorized = state.uncategorized;
+
+    if (targetCategoryId !== currentCategoryId) {
+      if (currentCategoryId) {
+        if (!targetCategoryId) nextUncategorized = [...nextUncategorized, taskId];
+      } else {
+        nextUncategorized = nextUncategorized.filter((id) => id !== taskId);
+      }
+      cats = cats.map((c) => {
+        let queue = c.queue;
+        if (c.id === currentCategoryId) queue = queue.filter((id) => id !== taskId);
+        if (c.id === targetCategoryId) queue = [...queue, taskId];
+        return queue === c.queue ? c : { ...c, queue };
+      });
+    }
+
+    const nextTasks = {
+      ...state.tasks,
+      [taskId]: { ...task, title, deadline, repeat, notes, categoryId: targetCategoryId },
+    };
+
+    persist({ ...state, categories: cats, tasks: nextTasks, uncategorized: nextUncategorized });
+  };
+
+  const updateCategory = (categoryId, updates) => {
+    persist({ ...state, categories: state.categories.map((c) => (c.id === categoryId ? { ...c, ...updates } : c)) });
+  };
+
+  const toggleAllTasksFilter = (id) => {
+    setAllTasksHidden((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const addCategory = (name, color) => {
+    const id = uid();
+    persist({ ...state, categories: [...state.categories, { id, name, color, visible: true, queue: [], parentId: null }] });
+    return id;
+  };
+
+  const addSubcategory = (parentId, name, color) => {
+    const id = uid();
+    persist({ ...state, categories: [...state.categories, { id, name, color, visible: true, queue: [], parentId }] });
+    return id;
+  };
+
+  const convertToGroup = (categoryId, subName, subColor) => {
+    const parent = state.categories.find((c) => c.id === categoryId);
+    if (!parent) return;
+    const subId = uid();
+    const newSub = { id: subId, name: subName, color: subColor, visible: true, queue: parent.queue, parentId: categoryId };
+    const nextCategories = state.categories.map((c) => (c.id === categoryId ? { ...c, queue: [] } : c)).concat([newSub]);
+    persist({ ...state, categories: nextCategories });
+    return subId;
+  };
+
+  const addOrConvertSubcategory = (categoryId, name, color) => {
+    const hasChildren = state.categories.some((c) => c.parentId === categoryId);
+    if (hasChildren) addSubcategory(categoryId, name, color);
+    else convertToGroup(categoryId, name, color);
+  };
+
+  const deleteCategory = (categoryId) => {
+    const cat = state.categories.find((c) => c.id === categoryId);
+    if (!cat) return;
+    const childIds = state.categories.filter((c) => c.parentId === categoryId).map((c) => c.id);
+    const removeIds = [categoryId, ...childIds];
+    const nextTasks = { ...state.tasks };
+    removeIds.forEach((id) => {
+      const c = state.categories.find((cc) => cc.id === id);
+      if (c) c.queue.forEach((tid) => delete nextTasks[tid]);
+    });
+    persist({ ...state, categories: state.categories.filter((c) => !removeIds.includes(c.id)), tasks: nextTasks });
+  };
+
+  const toggleVisible = (categoryId) => {
+    persist({ ...state, categories: state.categories.map((c) => (c.id === categoryId ? { ...c, visible: !c.visible } : c)) });
+  };
+
+  const addTask = ({ categoryId, newCategoryName, newCategoryColor, newCategoryParentId, title, deadline, repeat, notes }) => {
+    let catId = categoryId;
+    let cats = state.categories;
+    if (!catId && newCategoryName) {
+      catId = uid();
+      cats = [...cats, { id: catId, name: newCategoryName, color: newCategoryColor, visible: true, queue: [], parentId: newCategoryParentId || null }];
+    }
+    if (!catId) return;
+    const task = { id: uid(), categoryId: catId, title, deadline: deadline || null, repeat: repeat || "none", notes: notes || "", createdAt: Date.now() };
+    const nextTasks = { ...state.tasks, [task.id]: task };
+    const nextCats = cats.map((c) => (c.id === catId ? { ...c, queue: [...c.queue, task.id] } : c));
+    persist({ ...state, categories: nextCats, tasks: nextTasks });
+  };
+
+  const deleteTask = (categoryId, taskId) => {
+    const nextTasks = { ...state.tasks };
+    delete nextTasks[taskId];
+    const nextCats = state.categories.map((c) => (c.id === categoryId ? { ...c, queue: c.queue.filter((id) => id !== taskId) } : c));
+    persist({ ...state, categories: nextCats, tasks: nextTasks });
+  };
+
+  const reorderTaskQueue = (categoryId, newOrderIds) => {
+    persist({ ...state, categories: state.categories.map((c) => (c.id === categoryId ? { ...c, queue: newOrderIds } : c)) });
+  };
+
+  const reorderSubcategories = (parentId, newOrderIds) => {
+    const childById = Object.fromEntries(state.categories.filter((c) => c.parentId === parentId).map((c) => [c.id, c]));
+    const reorderedChildren = newOrderIds.map((id) => childById[id]).filter(Boolean);
+    const result = [];
+    let inserted = false;
+    state.categories.forEach((c) => {
+      if (c.parentId === parentId) {
+        if (!inserted) {
+          result.push(...reorderedChildren);
+          inserted = true;
+        }
+      } else {
+        result.push(c);
+      }
+    });
+    persist({ ...state, categories: result });
+  };
+
+  const reorderCategories = (newVisibleTopIds) => {
+    const topLevel = state.categories.filter((c) => !c.parentId);
+    const hiddenTop = topLevel.filter((c) => !newVisibleTopIds.includes(c.id));
+    const orderedTopIds = [...newVisibleTopIds, ...hiddenTop.map((c) => c.id)];
+    const byId = Object.fromEntries(state.categories.map((c) => [c.id, c]));
+    const childrenOf = (pid) => state.categories.filter((c) => c.parentId === pid);
+    const newArray = [];
+    orderedTopIds.forEach((id) => {
+      const cat = byId[id];
+      if (!cat) return;
+      newArray.push(cat);
+      childrenOf(id).forEach((ch) => newArray.push(ch));
+    });
+    persist({ ...state, categories: newArray });
+  };
+
+  const applyDueFilter = (mode) => {
+    const isLeaf = (c) => !state.categories.some((cc) => cc.parentId === c.id);
+    const nextCats = state.categories.map((c) => {
+      if (!isLeaf(c)) return c;
+      if (mode === "all") return { ...c, visible: true };
+      const days = mode === "today" ? 0 : mode === "week" ? 7 : 30;
+      const front = c.queue[0] ? state.tasks[c.queue[0]] : null;
+      if (!front || !front.deadline) return { ...c, visible: false };
+      const diff = Math.round((new Date(front.deadline + "T00:00:00") - new Date(todayStr() + "T00:00:00")) / 86400000);
+      return { ...c, visible: diff <= days };
+    });
+    persist({ ...state, categories: nextCats });
+  };
+
+  const exportData = () => {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `homework-backup-${todayStr()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const importData = (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          if (parsed && typeof parsed === "object" && parsed.categories && parsed.tasks) {
+            parsed.uncategorized = parsed.uncategorized || [];
+            parsed.completedLog = parsed.completedLog || [];
+            parsed.completedRetentionDays = parsed.completedRetentionDays !== undefined ? parsed.completedRetentionDays : 60;
+            Object.values(parsed.tasks).forEach((t) => { t.repeat = migrateRepeat(t.repeat); });
+            persist(parsed);
+            resolve({ ok: true });
+          } else {
+            resolve({ ok: false, message: "That file doesn't look like a Today backup." });
+          }
+        } catch {
+          resolve({ ok: false, message: "Couldn't read that file." });
+        }
+      };
+      reader.onerror = () => resolve({ ok: false, message: "Couldn't read that file." });
+      reader.readAsText(file);
+    });
+  };
+
+  const brainDump = (lines) => {
+    const nextTasks = { ...state.tasks };
+    const newIds = [];
+    lines.forEach((title) => {
+      const t = { id: uid(), categoryId: null, title, notes: "", deadline: null, repeat: noRepeat(), createdAt: Date.now() };
+      nextTasks[t.id] = t;
+      newIds.push(t.id);
+    });
+    persist({ ...state, tasks: nextTasks, uncategorized: [...state.uncategorized, ...newIds] });
+  };
+
+  const removeUncategorized = (taskId) => {
+    const nextTasks = { ...state.tasks };
+    delete nextTasks[taskId];
+    persist({ ...state, tasks: nextTasks, uncategorized: state.uncategorized.filter((id) => id !== taskId) });
+  };
+
+  const readdFromCompleted = (entry) => {
+    const catExists = state.categories.some((c) => c.id === entry.categoryId);
+    const task = { id: uid(), categoryId: catExists ? entry.categoryId : null, title: entry.title, notes: "", deadline: null, repeat: noRepeat(), createdAt: Date.now() };
+    const nextTasks = { ...state.tasks, [task.id]: task };
+    if (catExists) {
+      const nextCategories = state.categories.map((c) => (c.id === entry.categoryId ? { ...c, queue: [...c.queue, task.id] } : c));
+      persist({ ...state, tasks: nextTasks, categories: nextCategories });
+    } else {
+      persist({ ...state, tasks: nextTasks, uncategorized: [...state.uncategorized, task.id] });
+    }
+  };
+
+  const updateRetention = (days) => {
+    const cutoff = days ? Date.now() - days * 86400000 : null;
+    const nextLog = cutoff ? state.completedLog.filter((e) => e.completedAt >= cutoff) : state.completedLog;
+    persist({ ...state, completedRetentionDays: days, completedLog: nextLog });
+  };
+
+  const assignTaskCategory = (taskId, categoryId) => {
+    reassignTask(taskId, null, categoryId);
+  };
+
+  const reassignTask = (taskId, fromCategoryId, toCategoryId) => {
+    if (fromCategoryId === toCategoryId) return;
+    let nextUncategorized = state.uncategorized;
+    if (fromCategoryId) {
+      if (!toCategoryId) nextUncategorized = [...nextUncategorized, taskId];
+    } else {
+      nextUncategorized = nextUncategorized.filter((id) => id !== taskId);
+    }
+    const nextCategories = state.categories.map((c) => {
+      let queue = c.queue;
+      if (c.id === fromCategoryId) queue = queue.filter((id) => id !== taskId);
+      if (c.id === toCategoryId) queue = [...queue, taskId];
+      return queue === c.queue ? c : { ...c, queue };
+    });
+    const nextTasks = { ...state.tasks, [taskId]: { ...state.tasks[taskId], categoryId: toCategoryId } };
+    persist({ ...state, uncategorized: nextUncategorized, categories: nextCategories, tasks: nextTasks });
+  };
+
+  const createCategoryAndAssign = (name, color, taskId) => {
+    const id = uid();
+    const nextCategories = [...state.categories, { id, name, color, visible: true, queue: [taskId], parentId: null }];
+    const nextUncategorized = state.uncategorized.filter((tid) => tid !== taskId);
+    persist({ ...state, categories: nextCategories, uncategorized: nextUncategorized });
+  };
+
+  const registerDropZone = (categoryId, el) => {
+    dropZoneRefs.current[categoryId] = el;
+  };
+
+  const registerRowDropZone = (taskId, el) => {
+    if (el) rowDropZoneRefs.current[taskId] = el;
+    else delete rowDropZoneRefs.current[taskId];
+  };
+
+  const startDrag = (task, x, y, opts = {}) => {
+    if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
+    pendingDragRef.current = { task, opts, startX: x, startY: y };
+    setPendingDragId(task.id);
+  };
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await window.storage.get(STORAGE_KEY, false);
+        const raw = res ? JSON.parse(res.value) : null;
+        if (raw) {
+          raw.uncategorized = raw.uncategorized || [];
+          raw.completedLog = raw.completedLog || [];
+          raw.completedRetentionDays = raw.completedRetentionDays !== undefined ? raw.completedRetentionDays : 60;
+          raw.themeId = raw.themeId || "classic";
+          if (raw.tasks) {
+            Object.values(raw.tasks).forEach((t) => { t.repeat = migrateRepeat(t.repeat); });
+          }
+        }
+        setState(raw);
+      } catch {
+        setState(null);
+      } finally {
+        setLoaded(true);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!loaded || !state) return;
+    const today = todayStr();
+    if (state.lastSeenDate !== today) {
+      setShowGreeting(true);
+      persist({ ...state, lastSeenDate: today });
+      const t = setTimeout(() => setShowGreeting(false), 7000);
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, state?.lastSeenDate]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    setState((prev) => {
+      if (!prev) return prev;
+      const days = prev.completedRetentionDays;
+      if (!days) return prev;
+      const cutoff = Date.now() - days * 86400000;
+      const trimmed = prev.completedLog.filter((e) => e.completedAt >= cutoff);
+      if (trimmed.length === prev.completedLog.length) return prev;
+      const next = { ...prev, completedLog: trimmed };
+      scheduleSave(next);
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded]);
+
+  useEffect(() => {
+    if (!pendingDragId) return;
+    const pending = pendingDragRef.current;
+    if (!pending) return;
+
+    const finishPending = () => {
+      if (pressTimerRef.current) { clearTimeout(pressTimerRef.current); pressTimerRef.current = null; }
+      pendingDragRef.current = null;
+      setPendingDragId(null);
+    };
+
+    pressTimerRef.current = setTimeout(() => {
+      pressTimerRef.current = null;
+      const p = pendingDragRef.current;
+      if (!p) return;
+      dragRef.current = { taskId: p.task.id, task: p.task, title: p.task.title, x: p.startX, y: p.startY, startX: p.startX, startY: p.startY, fromCategoryId: p.opts.fromCategoryId ?? null, onTap: p.opts.onTap };
+      if (navigator.vibrate) navigator.vibrate(12);
+      pendingDragRef.current = null;
+      setPendingDragId(null);
+      setDraggingId(p.task.id);
+    }, LONG_PRESS_MS);
+
+    const handleMove = (e) => {
+      const dist = Math.hypot(e.clientX - pending.startX, e.clientY - pending.startY);
+      if (dist > PRESS_CANCEL_PX) finishPending();
+    };
+    const handleUp = () => {
+      const wasPending = !!pressTimerRef.current;
+      finishPending();
+      if (wasPending) pending.opts.onTap?.();
+    };
+    const handleCancel = () => finishPending();
+
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+    window.addEventListener("pointercancel", handleCancel);
+    return () => {
+      if (pressTimerRef.current) { clearTimeout(pressTimerRef.current); pressTimerRef.current = null; }
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+      window.removeEventListener("pointercancel", handleCancel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingDragId]);
+
+  useEffect(() => {
+    if (!draggingId) return;
+    let scrollRaf = null;
+    let scrollSpeed = 0;
+
+    const runAutoScroll = () => {
+      if (scrollSpeed !== 0) {
+        const target = document.querySelector(".sheet, .pageBody");
+        if (target) target.scrollBy(0, scrollSpeed);
+        else window.scrollBy(0, scrollSpeed);
+        scrollRaf = requestAnimationFrame(runAutoScroll);
+      } else {
+        scrollRaf = null;
+      }
+    };
+
+    const updateAutoScroll = (clientY) => {
+      const margin = 90;
+      const vh = window.innerHeight;
+      if (clientY < margin) {
+        scrollSpeed = -Math.ceil((margin - clientY) / 4) - 2;
+      } else if (clientY > vh - margin) {
+        scrollSpeed = Math.ceil((margin - (vh - clientY)) / 4) + 2;
+      } else {
+        scrollSpeed = 0;
+      }
+      if (scrollSpeed !== 0 && scrollRaf == null) scrollRaf = requestAnimationFrame(runAutoScroll);
+    };
+
+    const cleanupDrag = () => {
+      scrollSpeed = 0;
+      if (scrollRaf != null) { cancelAnimationFrame(scrollRaf); scrollRaf = null; }
+      dragRef.current = null;
+      setDraggingId(null);
+    };
+
+    const handleMove = (e) => {
+      if (!dragRef.current) return;
+      e.preventDefault();
+      dragRef.current.x = e.clientX;
+      dragRef.current.y = e.clientY;
+      forceDragTick((t) => t + 1);
+      updateAutoScroll(e.clientY);
+    };
+    const handleTouchMove = (e) => {
+      if (!dragRef.current) return;
+      e.preventDefault();
+      const t = e.touches[0];
+      if (!t) return;
+      dragRef.current.x = t.clientX;
+      dragRef.current.y = t.clientY;
+      forceDragTick((tk) => tk + 1);
+      updateAutoScroll(t.clientY);
+    };
+    const handleUp = (e) => {
+      const info = dragRef.current;
+      cleanupDrag();
+      if (!info) return;
+
+      let targetId = null;
+      Object.keys(dropZoneRefs.current).forEach((catId) => {
+        const el = dropZoneRefs.current[catId];
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) targetId = catId;
+      });
+
+      if (targetId && targetId === info.fromCategoryId) {
+        // Dropped back within the same category's section — reorder within it based on where
+        // the drop point falls relative to the other rows, without requiring a precise row hit.
+        const cat = state.categories.find((c) => c.id === targetId);
+        if (cat) {
+          const rest = cat.queue.filter((id) => id !== info.taskId);
+          let targetIndex = rest.length;
+          for (let i = 0; i < rest.length; i++) {
+            const rowEl = rowDropZoneRefs.current[rest[i]];
+            if (!rowEl) continue;
+            const r = rowEl.getBoundingClientRect();
+            const mid = r.top + r.height / 2;
+            if (e.clientY < mid) { targetIndex = i; break; }
+          }
+          const newQueue = [...rest];
+          newQueue.splice(targetIndex, 0, info.taskId);
+          const changed = newQueue.length !== cat.queue.length || newQueue.some((id, i) => id !== cat.queue[i]);
+          if (changed) reorderTaskQueue(targetId, newQueue);
+        }
+        return;
+      }
+
+      if (targetId) reassignTask(info.taskId, info.fromCategoryId, targetId === "__uncategorized__" ? null : targetId);
+    };
+    const handleCancel = () => cleanupDrag();
+
+    window.addEventListener("pointermove", handleMove, { passive: false });
+    window.addEventListener("touchmove", handleTouchMove, { passive: false });
+    window.addEventListener("pointerup", handleUp);
+    window.addEventListener("pointercancel", handleCancel);
+    return () => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("pointerup", handleUp);
+      window.removeEventListener("pointercancel", handleCancel);
+      if (scrollRaf != null) cancelAnimationFrame(scrollRaf);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draggingId]);
+
+  if (!loaded) {
+    return <Shell><div style={{ padding: "3rem 1rem", textAlign: "center", color: "var(--ink-soft)" }}>Loading…</div></Shell>;
+  }
+
+  if (!state) {
+    return (
+      <Shell>
+        <OnboardScreen onExample={loadExample} onEmpty={startEmpty} />
+      </Shell>
+    );
+  }
+
+  const entries = buildTodayEntries(state.categories);
+  const currentTheme = getTheme(state.themeId);
+
+  const completedToday = state.completedLog.filter((e) => new Date(e.completedAt).toDateString() === new Date().toDateString()).length;
+  const remainingActive = entries.reduce((sum, e) => {
+    if (e.type === "leaf") return sum + (e.category.queue.length > 0 ? 1 : 0);
+    return sum + e.children.filter((k) => k.queue.length > 0).length;
+  }, 0);
+  const totalToday = completedToday + remainingActive;
+
+  const hoveredCategoryId = draggingId && dragRef.current
+    ? Object.keys(dropZoneRefs.current).find((id) => {
+        const el = dropZoneRefs.current[id];
+        if (!el) return false;
+        const r = el.getBoundingClientRect();
+        return dragRef.current.x >= r.left && dragRef.current.x <= r.right && dragRef.current.y >= r.top && dragRef.current.y <= r.bottom;
+      })
+    : null;
+
+  return (
+    <Shell theme={currentTheme}>
+      <style>{FONT_IMPORT}</style>
+      <Header
+        onSettings={() => setModal({ type: "today" })}
+        onManage={() => setModal({ type: "manage" })}
+        onOpenTheme={() => setModal({ type: "theme" })}
+        onOpenAccount={() => setModal({ type: "account" })}
+        currentUser={currentUser}
+      />
+
+      {pendingUndo && (
+        <div className="undoBar">
+          <span>Assignment turned in.</span>
+          <button className="undoBtn" onClick={undoComplete}>Undo</button>
+        </div>
+      )}
+
+      {celebration?.type === "task" && (
+        <div className="celebrationToast" key={celebration.id}>
+          <Sparkles size={15} />
+          <span>{celebration.title}</span>
+        </div>
+      )}
+
+      {celebration?.type === "subject" && (
+        <div className="celebrationBackdrop" onClick={() => setCelebration(null)}>
+          <div className="celebrationCard" key={celebration.id}>
+            <div className="confettiWrap">
+              {CONFETTI_COLORS.map((color, i) => (
+                <span
+                  key={i}
+                  className="confettiPiece"
+                  style={{ left: `${6 + i * 11}%`, background: color, animationDelay: `${(i % 5) * 0.12}s` }}
+                />
+              ))}
+            </div>
+            <div className="celebrationEmoji">🎉</div>
+            <h2 className="celebrationTitle">{celebration.title}</h2>
+            <p className="celebrationSubtitle">Every assignment in this class is checked off.</p>
+            <button className="primaryBtn" onClick={() => setCelebration(null)}>Nice!</button>
+          </div>
+        </div>
+      )}
+
+      <div className="stack">
+        {showGreeting && (
+          <div className="greetingBanner">
+            <Sun size={16} />
+            <span>{greetingText()}, here's what you're focusing on today.</span>
+            <button className="greetingClose" onClick={() => setShowGreeting(false)} aria-label="Dismiss"><X size={14} /></button>
+          </div>
+        )}
+
+        {totalToday > 0 && (
+          <div className="progressWrap">
+            <div className="progressBar"><div className="progressFill" style={{ width: `${Math.round((completedToday / totalToday) * 100)}%` }} /></div>
+            <span className="progressLabel">{completedToday} of {totalToday} done today</span>
+          </div>
+        )}
+
+        {state.categories.length === 0 && state.uncategorized.length === 0 && (
+          <EmptyState
+            title="No class subjects yet"
+            body="Add a class subject and its first assignment will show up here."
+            actionLabel="Add an assignment"
+            onAction={() => setModal({ type: "addTask" })}
+          />
+        )}
+
+        {state.categories.length > 0 && entries.length === 0 && (
+          <EmptyState
+            title="Nothing selected for today"
+            body="Choose which class subjects you want to see right now."
+            actionLabel="Choose class subjects"
+            onAction={() => setModal({ type: "today" })}
+          />
+        )}
+
+        {entries.length > 0 && (
+          <ReorderableCategoryList
+            items={entries}
+            onReorder={reorderCategories}
+            renderItem={(entry) =>
+              entry.type === "leaf" ? (
+                <div ref={(el) => registerDropZone(entry.category.id, el)} className={hoveredCategoryId === entry.category.id ? "dropTargetActive" : ""}>
+                  <CategoryStack
+                    category={entry.category}
+                    tasks={state.tasks}
+                    onComplete={(taskId) => completeTask(entry.category.id, taskId)}
+                    onSkip={(task) => handleSkip(entry.category.id, task)}
+                    onOpenTask={(task) => setModal({ type: "editTask", task })}
+                    onAddTask={() => setModal({ type: "addTask", categoryId: entry.category.id })}
+                    onOpenQueue={() => setModal({ type: "manageCategory", categoryId: entry.category.id })}
+                    onStartDrag={startDrag}
+                    draggingId={draggingId}
+                  />
+                </div>
+              ) : (
+                <GroupBlock
+                  parent={entry.category}
+                  children={entry.children}
+                  tasks={state.tasks}
+                  onComplete={(childId, taskId) => completeTask(childId, taskId)}
+                  onSkip={(childId, task) => handleSkip(childId, task)}
+                  onOpenTask={(task) => setModal({ type: "editTask", task })}
+                  onAddTask={(childId) => setModal({ type: "addTask", categoryId: childId })}
+                  onOpenQueue={(childId) => setModal({ type: "manageCategory", categoryId: childId })}
+                  onOpenGroup={() => setModal({ type: "manageCategory", categoryId: entry.category.id })}
+                  registerDropZone={registerDropZone}
+                  hoveredCategoryId={hoveredCategoryId}
+                  onStartDrag={startDrag}
+                  draggingId={draggingId}
+                />
+              )
+            }
+          />
+        )}
+
+        <UncategorizedSection
+          tasks={state.tasks}
+          taskIds={state.uncategorized}
+          onStartDrag={(t, x, y) => startDrag(t, x, y, { fromCategoryId: null, onTap: () => setModal({ type: "assignCategory", task: t }) })}
+          onDelete={(taskId) => setModal({ type: "confirmDeleteTask", task: state.tasks[taskId], onConfirm: () => removeUncategorized(taskId), returnTo: null })}
+          draggingId={draggingId}
+        />
+      </div>
+
+      <div className="fabRow">
+        <button className="fabSecondary" onClick={() => setModal({ type: "allTasks" })} aria-label="See all assignments">
+          <ClipboardList size={21} />
+        </button>
+        <button className="fabSecondary" onClick={() => setModal({ type: "completedHistory", filter: "today" })} aria-label="Completed assignments">
+          <ClipboardCheck size={21} />
+        </button>
+        <button className="fabSecondary" onClick={() => setModal({ type: "brainDump" })} aria-label="Brain dump">
+          <Zap size={22} />
+        </button>
+        <button className="fab" onClick={() => setModal({ type: "addTask" })} aria-label="Add assignment">
+          <Plus size={24} strokeWidth={2.25} />
+        </button>
+      </div>
+
+      {draggingId && dragRef.current && (
+        <div className="dragGhost" style={{ left: dragRef.current.x, top: dragRef.current.y }}>
+          {dragRef.current.title}
+        </div>
+      )}
+
+      {modal?.type === "addTask" && (
+        <TaskModal
+          categories={state.categories}
+          initialCategoryId={modal.categoryId}
+          onClose={() => setModal(modal.returnTo || null)}
+          onSubmit={(data) => { addTask(data); setModal(modal.returnTo || null); }}
+        />
+      )}
+
+      {modal?.type === "editTask" && (
+        <TaskDetailModal
+          task={modal.task}
+          category={state.categories.find((c) => c.id === modal.task.categoryId)}
+          categories={state.categories}
+          onClose={() => setModal(modal.returnTo || null)}
+          onRequestDelete={() => setModal({
+            type: "confirmDeleteTask",
+            task: modal.task,
+            onConfirm: () => deleteTask(modal.task.categoryId, modal.task.id),
+            returnTo: { type: "editTask", task: modal.task, returnTo: modal.returnTo },
+            afterConfirm: modal.returnTo || null,
+          })}
+          onComplete={() => { completeTask(modal.task.categoryId, modal.task.id); setModal(modal.returnTo || null); }}
+          onSave={(updates) => { saveTaskEdits(modal.task.id, updates); setModal(modal.returnTo || null); }}
+        />
+      )}
+
+      {modal?.type === "confirmDeleteTask" && (
+        <ConfirmDeleteTaskModal
+          task={modal.task}
+          onCancel={() => setModal(modal.returnTo || null)}
+          onConfirm={() => { modal.onConfirm(); setModal(modal.afterConfirm !== undefined ? modal.afterConfirm : (modal.returnTo || null)); }}
+        />
+      )}
+
+      {modal?.type === "skipDeadline" && (
+        <SkipDeadlineModal
+          task={modal.task}
+          onCancel={() => setModal(null)}
+          onKeepAndSkip={() => { moveToBottom(modal.categoryId, modal.task.id); setModal(null); }}
+          onUpdateAndSkip={(newDate) => { updateTask(modal.task.id, { deadline: newDate }); moveToBottom(modal.categoryId, modal.task.id); setModal(null); }}
+        />
+      )}
+
+      {modal?.type === "today" && (
+        <TodaySelectorModal
+          categories={state.categories}
+          tasks={state.tasks}
+          onToggle={toggleVisible}
+          onApplyFilter={applyDueFilter}
+          onClose={() => setModal(null)}
+        />
+      )}
+
+      {modal?.type === "allTasks" && (
+        <AllTasksModal
+          categories={state.categories}
+          tasks={state.tasks}
+          uncategorizedIds={state.uncategorized}
+          onBack={() => setModal(null)}
+          onOpenTask={(task) => setModal({ type: "editTask", task })}
+          onStartDrag={startDrag}
+          registerDropZone={registerDropZone}
+          registerRowDropZone={registerRowDropZone}
+          hoveredCategoryId={hoveredCategoryId}
+          draggingId={draggingId}
+          onAssignUncategorized={(task) => setModal({ type: "assignCategory", task, returnTo: { type: "allTasks" } })}
+          hiddenIds={allTasksHidden}
+          onOpenFilter={() => setModal({ type: "allTasksFilter", returnTo: { type: "allTasks" } })}
+          onShowAll={() => setAllTasksHidden(new Set())}
+        />
+      )}
+
+      {modal?.type === "allTasksFilter" && (
+        <AllTasksFilterModal
+          categories={state.categories}
+          hiddenIds={allTasksHidden}
+          onToggle={toggleAllTasksFilter}
+          onShowAll={() => setAllTasksHidden(new Set())}
+          onClose={() => setModal(modal.returnTo || { type: "allTasks" })}
+        />
+      )}
+
+      {modal?.type === "completedHistory" && (
+        <CompletedHistoryModal
+          log={state.completedLog}
+          categories={state.categories}
+          initialFilter={modal.filter}
+          onBack={() => setModal(null)}
+          onReadd={readdFromCompleted}
+          retentionDays={state.completedRetentionDays}
+          onUpdateRetention={updateRetention}
+        />
+      )}
+
+      {modal?.type === "brainDump" && (
+        <BrainDumpModal onClose={() => setModal(null)} onSubmit={(lines) => { brainDump(lines); setModal(null); }} />
+      )}
+
+      {modal?.type === "assignCategory" && modal.task && (
+        <AssignCategoryModal
+          task={modal.task}
+          categories={state.categories}
+          onAssign={(categoryId) => { assignTaskCategory(modal.task.id, categoryId); setModal(modal.returnTo || null); }}
+          onCreateAndAssign={(name, color) => { createCategoryAndAssign(name, color, modal.task.id); setModal(modal.returnTo || null); }}
+          onClose={() => setModal(modal.returnTo || null)}
+        />
+      )}
+
+      {modal?.type === "manage" && (
+        <ManageModal
+          categories={state.categories.filter((c) => !c.parentId)}
+          allCategories={state.categories}
+          onBack={() => setModal(null)}
+          onAddCategory={addCategory}
+          onOpenCategory={(categoryId) => setModal({ type: "manageCategory", categoryId, backTo: { type: "manage" } })}
+          onOpenChild={(categoryId) => setModal({ type: "manageCategory", categoryId, backTo: { type: "manage" } })}
+          onResetExample={() => { loadExample(); setModal(null); }}
+          onExportData={exportData}
+          onImportFile={importData}
+        />
+      )}
+
+      {modal?.type === "manageCategory" && state.categories.find((c) => c.id === modal.categoryId) && (
+        <ManageCategoryModal
+          key={modal.categoryId}
+          category={state.categories.find((c) => c.id === modal.categoryId)}
+          allCategories={state.categories}
+          tasks={state.tasks}
+          onBack={() => setModal(modal.backTo || null)}
+          onDeleteCategory={(categoryId) => { deleteCategory(categoryId); setModal(modal.backTo || null); }}
+          onRequestDeleteTask={(task) => setModal({
+            type: "confirmDeleteTask",
+            task,
+            onConfirm: () => deleteTask(modal.categoryId, task.id),
+            returnTo: { type: "manageCategory", categoryId: modal.categoryId, backTo: modal.backTo },
+          })}
+          onReorderTasks={reorderTaskQueue}
+          onReorderSubcategories={reorderSubcategories}
+          onAddTask={() => setModal({ type: "addTask", categoryId: modal.categoryId, returnTo: { type: "manageCategory", categoryId: modal.categoryId, backTo: modal.backTo } })}
+          onOpenTask={(task) => setModal({ type: "editTask", task, returnTo: { type: "manageCategory", categoryId: modal.categoryId, backTo: modal.backTo } })}
+          onAddOrConvertSubcategory={addOrConvertSubcategory}
+          onOpenChildCategory={(childId) => setModal({ type: "manageCategory", categoryId: childId, backTo: { type: "manageCategory", categoryId: modal.categoryId, backTo: modal.backTo } })}
+          onUpdateCategory={updateCategory}
+        />
+      )}
+
+      {modal?.type === "account" && (
+        <AccountModal currentUser={currentUser} onClose={() => setModal(null)} onLogout={onLogout} />
+      )}
+
+      {modal?.type === "theme" && (
+        <ThemeModal
+          currentThemeId={state.themeId || "classic"}
+          onSelect={(themeId) => setTheme(themeId)}
+          onClose={() => setModal(null)}
+        />
+      )}
+    </Shell>
+  );
+}
+
+function Shell({ children, theme }) {
+  return (
+    <div className="shell" style={theme ? themeToCssVars(theme) : undefined}>
+      <style>{BASE_CSS}</style>
+      {children}
+    </div>
+  );
+}
+
+function Header({ onSettings, onManage, onOpenTheme, onOpenAccount, currentUser }) {
+  const dateLabel = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+  return (
+    <div className="header">
+      <div>
+        <h1 className="brand">Homework</h1>
+        <p className="date">{dateLabel}</p>
+      </div>
+      <div className="headerActions">
+        <button className="iconBtn" onClick={onManage} aria-label="Manage class subjects and assignments">
+          <Layers size={19} />
+        </button>
+        <button className="iconBtn" onClick={onSettings} aria-label="Choose today's class subjects">
+          <Settings2 size={19} />
+        </button>
+        <button className="iconBtn" onClick={onOpenTheme} aria-label="Color scheme">
+          <Palette size={19} />
+        </button>
+        {currentUser && (
+          <button className="iconBtn" onClick={onOpenAccount} aria-label="Account">
+            <span className="avatarInitial">{(currentUser.displayName || "?").trim().charAt(0).toUpperCase()}</span>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function OnboardScreen({ onExample, onEmpty }) {
+  return (
+    <div className="onboard">
+      <style>{FONT_IMPORT}</style>
+      <div className="onboardIcon"><Sparkles size={22} /></div>
+      <h1 className="onboardTitle">Homework</h1>
+      <p className="onboardBody">
+        One assignment at a time, per class subject. Finish it, swipe it off, and the next one takes its place.
+        Nothing else is waiting on screen to overwhelm you.
+      </p>
+      <button className="primaryBtn" onClick={onExample}>See it with an example</button>
+      <button className="ghostBtn" onClick={onEmpty}>Start from scratch</button>
+    </div>
+  );
+}
+
+function EmptyState({ title, body, actionLabel, onAction }) {
+  return (
+    <div className="emptyState">
+      <p className="emptyTitle">{title}</p>
+      <p className="emptyBody">{body}</p>
+      <button className="ghostBtn" onClick={onAction}>{actionLabel}</button>
+    </div>
+  );
+}
+
+function ReorderableCategoryList({ items, onReorder, renderItem }) {
+  const [order, setOrder] = useState(items.map((it) => it.id));
+  const [dragId, setDragId] = useState(null);
+  const [dragOffset, setDragOffset] = useState(0);
+  const dragInfo = useRef(null);
+  const itemRefs = useRef({});
+  const prevTopsRef = useRef({});
+
+  useEffect(() => {
+    setOrder((prev) => {
+      const incoming = items.map((it) => it.id);
+      const same = prev.length === incoming.length && prev.every((id, i) => id === incoming[i]);
+      return same ? prev : incoming;
+    });
+  }, [items]);
+
+  useLayoutEffect(() => {
+    const newTops = {};
+    order.forEach((id) => {
+      const el = itemRefs.current[id];
+      if (el) newTops[id] = el.getBoundingClientRect().top;
+    });
+    order.forEach((id) => {
+      if (id === dragId) return;
+      const el = itemRefs.current[id];
+      if (!el) return;
+      const prevTop = prevTopsRef.current[id];
+      const newTop = newTops[id];
+      if (prevTop != null && newTop != null && prevTop !== newTop) {
+        const deltaY = prevTop - newTop;
+        el.style.transition = "none";
+        el.style.transform = `translateY(${deltaY}px)`;
+        requestAnimationFrame(() => {
+          el.style.transition = "transform 0.22s ease";
+          el.style.transform = "";
+        });
+      }
+    });
+    prevTopsRef.current = newTops;
+  }, [order, dragId]);
+
+  const byId = Object.fromEntries(items.map((it) => [it.id, it]));
+
+  const onHandleDown = (id, clientY) => {
+    const idx = order.indexOf(id);
+    const el = itemRefs.current[id];
+    const step = (el?.offsetHeight || 90) + 22;
+    dragInfo.current = { id, startY: clientY, startIndex: idx, step, order: [...order] };
+    setDragId(id);
+    setDragOffset(0);
+  };
+
+  const onMove = (clientY) => {
+    const info = dragInfo.current;
+    if (!info) return;
+    const delta = clientY - info.startY;
+    const rawShift = Math.round(delta / info.step);
+    const targetIndex = Math.min(Math.max(info.startIndex + rawShift, 0), info.order.length - 1);
+    const actualShift = targetIndex - info.startIndex;
+    setDragOffset(delta - actualShift * info.step);
+    const without = info.order.filter((id) => id !== info.id);
+    without.splice(targetIndex, 0, info.id);
+    setOrder((prev) => {
+      const same = prev.length === without.length && prev.every((id, i) => id === without[i]);
+      return same ? prev : without;
+    });
+  };
+
+  const endDrag = () => {
+    if (dragInfo.current) {
+      const changed = order.length !== dragInfo.current.order.length || order.some((id, i) => id !== dragInfo.current.order[i]);
+      if (changed) onReorder(order);
+    }
+    dragInfo.current = null;
+    setDragId(null);
+    setDragOffset(0);
+  };
+
+  return (
+    <>
+      {order.map((id) => {
+        const item = byId[id];
+        if (!item) return null;
+        const dragging = dragId === id;
+        return (
+          <div
+            key={id}
+            ref={(el) => (itemRefs.current[id] = el)}
+            className={"dragItem" + (dragging ? " dragItemActive" : "")}
+            style={dragging ? { transform: `translateY(${dragOffset}px)`, zIndex: 30 } : undefined}
+          >
+            <button
+              className="dragHandle"
+              aria-label={`Reorder ${item.name}`}
+              onMouseDown={(e) => onHandleDown(id, e.clientY)}
+              onMouseMove={(e) => dragId === id && onMove(e.clientY)}
+              onMouseUp={endDrag}
+              onMouseLeave={() => dragId === id && endDrag()}
+              onTouchStart={(e) => onHandleDown(id, e.touches[0].clientY)}
+              onTouchMove={(e) => { if (dragId === id) onMove(e.touches[0].clientY); }}
+              onTouchEnd={endDrag}
+            >
+              <GripVertical size={15} />
+            </button>
+            <div className="dragContent">{renderItem(item)}</div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+function GroupBlock({ parent, children, tasks, onComplete, onSkip, onOpenTask, onAddTask, onOpenQueue, onOpenGroup, registerDropZone, hoveredCategoryId, onStartDrag, draggingId }) {
+  const c = PALETTE[parent.color] || PALETTE.teal;
+  return (
+    <div className="groupBlock">
+      <div className="groupHeader">
+        <span className="dot" style={{ background: c.solid }} />
+        <button className="groupNameBtn" onClick={onOpenGroup}>{parent.name}</button>
+      </div>
+      <div className="groupChildren">
+        {children.map((child) => (
+          <div key={child.id} ref={(el) => registerDropZone(child.id, el)} className={hoveredCategoryId === child.id ? "dropTargetActive" : ""}>
+            <CategoryStack
+              category={child}
+              tasks={tasks}
+              onComplete={(taskId) => onComplete(child.id, taskId)}
+              onSkip={(task) => onSkip(child.id, task)}
+              onOpenTask={onOpenTask}
+              onAddTask={() => onAddTask(child.id)}
+              onOpenQueue={() => onOpenQueue(child.id)}
+              onStartDrag={onStartDrag}
+              draggingId={draggingId}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CategoryStack({ category, tasks, onComplete, onSkip, onOpenTask, onAddTask, onOpenQueue, onStartDrag, draggingId }) {
+  const c = PALETTE[category.color] || PALETTE.teal;
+  const front = category.queue[0] ? tasks[category.queue[0]] : null;
+  const total = category.queue.length;
+
+  return (
+    <div className="catBlock">
+      <div className="catLabel">
+        <span className="dot" style={{ background: c.solid }} />
+        <button className="catNameBtn" onClick={onOpenQueue}>{category.name}</button>
+        {total > 0 && <span className="catCount">{total} assignment{total === 1 ? "" : "s"}</span>}
+      </div>
+
+      {front ? (
+        <div className="cardWrap">
+          {total > 1 && <div className="peek peek2" style={{ background: c.bg }} />}
+          {total > 2 && <div className="peek peek1" style={{ background: c.bg }} />}
+          <SwipeCard
+            key={front.id}
+            task={front}
+            colorKey={category.color}
+            onComplete={() => onComplete(front.id)}
+            onSkip={onSkip}
+            onOpen={() => onOpenTask(front)}
+            onStartCategoryDrag={onStartDrag ? (x, y) => onStartDrag(front, x, y, { fromCategoryId: category.id }) : undefined}
+            armed={draggingId === front.id}
+          />
+        </div>
+      ) : (
+        <div className="caughtUp" style={{ borderColor: c.solid + "33" }}>
+          <Check size={16} color={c.solid} />
+          <span>All caught up</span>
+          <button className="miniLink" style={{ color: c.solid }} onClick={onAddTask}>+ add assignment</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SkipArcIcon({ size = 16, color }) {
+  const c = color || "currentColor";
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M2.5 15 C 5 4, 19 4, 21.5 12.5" fill="none" stroke={c} strokeWidth={2.4} strokeLinecap="round" />
+      <path d="M16.8 9.8 L22 12.8 L20 7.5" fill="none" stroke={c} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function CheckSquareIcon({ size = 16, color }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || "currentColor"} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="4" />
+      <polyline points="7.5 12.5 10.5 15.5 16.5 8.5" />
+    </svg>
+  );
+}
+
+function ChevronsLeft({ size = 13, color }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || "currentColor"} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="11 17 6 12 11 7" />
+      <polyline points="18 17 13 12 18 7" />
+    </svg>
+  );
+}
+
+function ChevronsRight({ size = 13, color }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || "currentColor"} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="13 17 18 12 13 7" />
+      <polyline points="6 17 11 12 6 7" />
+    </svg>
+  );
+}
+
+function SwipeCard({ task, colorKey, onComplete, onSkip, onOpen, onStartCategoryDrag, armed }) {
+  const c = PALETTE[colorKey] || PALETTE.teal;
+  const [dx, setDx] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  const [skipping, setSkipping] = useState(false);
+  const start = useRef(null);
+  const moved = useRef(false);
+
+  const onDown = (clientX, clientY) => {
+    start.current = clientX;
+    moved.current = false;
+    setDragging(true);
+    onStartCategoryDrag?.(clientX, clientY);
+  };
+  const onMove = (clientX) => {
+    if (armed) return;
+    if (start.current == null) return;
+    const delta = clientX - start.current;
+    if (Math.abs(delta) > 4) moved.current = true;
+    setDx(delta);
+  };
+
+  const triggerComplete = () => {
+    setDragging(false);
+    setCompleting(true);
+    playDing();
+    if (navigator.vibrate) navigator.vibrate(15);
+    setTimeout(() => {
+      setLeaving(true);
+      setTimeout(onComplete, 240);
+    }, 300);
+  };
+
+  const triggerSkip = () => {
+    setDragging(false);
+    setSkipping(true);
+    playBump();
+    if (navigator.vibrate) navigator.vibrate(8);
+    setTimeout(() => {
+      setSkipping(false);
+      setDx(0);
+      onSkip(task);
+    }, 320);
+  };
+
+  const onUp = () => {
+    if (armed) { setDragging(false); start.current = null; return; }
+    if (dx > 90) triggerComplete();
+    else if (dx < -90) triggerSkip();
+    else { setDragging(false); setDx(0); }
+    start.current = null;
+  };
+
+  const info = deadlineInfo(task.deadline);
+
+  const style = armed
+    ? { transform: "scale(0.96)", opacity: 0.45, transition: "transform 0.15s ease, opacity 0.15s ease" }
+    : {
+        transform: `translateX(${leaving ? 420 : dx}px) rotate(${(leaving ? 420 : dx) / 24}deg)`,
+        opacity: leaving ? 0 : 1,
+        transition: dragging ? "none" : "transform 0.28s cubic-bezier(.2,.8,.2,1), opacity 0.28s",
+      };
+
+  return (
+    <div
+      className={"taskCard" + (armed ? " taskCardArmed" : "")}
+      style={style}
+      onMouseDown={(e) => onDown(e.clientX, e.clientY)}
+      onMouseMove={(e) => dragging && onMove(e.clientX)}
+      onMouseUp={onUp}
+      onMouseLeave={() => dragging && onUp()}
+      onTouchStart={(e) => onDown(e.touches[0].clientX, e.touches[0].clientY)}
+      onTouchMove={(e) => onMove(e.touches[0].clientX)}
+      onTouchEnd={onUp}
+      onClick={() => !moved.current && !armed && onOpen()}
+    >
+      <div className="taskCardBar" style={{ background: c.solid }} />
+      <div className="taskCardBody">
+        <div className="taskTitleRow">
+          <p className="taskTitle">{task.title}</p>
+          <div className="swipeHintIcons">
+            <span className="swipeHintIconGroup" title="Swipe left to skip">
+              <ChevronsLeft size={13} />
+              <SkipArcIcon size={18} />
+            </span>
+            <span className="swipeHintIconGroup" title="Swipe right to complete" style={{ color: c.solid }}>
+              <CheckSquareIcon size={18} />
+              <ChevronsRight size={13} />
+            </span>
+          </div>
+        </div>
+        <div className="taskMeta">
+          {info && (
+            <span className="badge" style={{ color: TONE_COLOR[info.tone] }}>
+              {info.tone === "neutral" ? (
+                <CalendarDays size={12} style={{ marginRight: 4, verticalAlign: -2 }} />
+              ) : (
+                <span className="dueCircle" style={{ background: TONE_COLOR[info.tone] }} />
+              )}
+              {info.label}
+            </span>
+          )}
+          {task.repeat && task.repeat.freq !== "none" && (
+            <span className="badge" style={{ color: "var(--ink-soft)" }}>
+              <Repeat size={12} style={{ marginRight: 4, verticalAlign: -2 }} />
+              {describeRepeat(task.repeat, task.deadline)}
+            </span>
+          )}
+          {task.notes && (
+            <span className="badge noteBadge" style={{ color: "var(--ink-soft)" }}>
+              <StickyNote size={12} style={{ marginRight: 4, verticalAlign: -2, flexShrink: 0 }} />
+              <span className="noteExcerpt">{task.notes.trim()}</span>
+            </span>
+          )}
+        </div>
+      </div>
+      <div className="swipeHint" style={{ opacity: Math.min(Math.max(dx, 0) / 90, 1) }}>
+        <Check size={16} />
+      </div>
+      <div className="swipeHintLeft" style={{ opacity: Math.min(Math.max(-dx, 0) / 90, 1) }}>
+        <SkipForward size={16} />
+      </div>
+      {completing && (
+        <div className="completeOverlay">
+          <Check size={26} />
+          <span className="overlayLabel">Done</span>
+        </div>
+      )}
+      {skipping && (
+        <div className="skipOverlay">
+          <SkipForward size={22} />
+          <span className="overlayLabel">Skipped</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function UncategorizedSection({ tasks, taskIds, onStartDrag, onDelete, draggingId, registerDropZone, hoveredCategoryId }) {
+  if (taskIds.length === 0) return null;
+  return (
+    <div
+      ref={registerDropZone ? (el) => registerDropZone("__uncategorized__", el) : undefined}
+      className={"uncatSection" + (hoveredCategoryId === "__uncategorized__" ? " dropTargetActive" : "")}
+    >
+      <div className="uncatHeader">Unassigned <span className="catCount">{taskIds.length}</span></div>
+      <p className="sheetHint" style={{ margin: "0 0 10px" }}>Press and hold, then drag onto a class subject above — or tap to assign.</p>
+      <div className="uncatList">
+        {taskIds.map((tid) => {
+          const t = tasks[tid];
+          if (!t) return null;
+          const info = deadlineInfo(t.deadline);
+          return (
+            <div
+              key={tid}
+              className={"uncatRow" + (draggingId === tid ? " rowArmed" : "")}
+              onPointerDown={(e) => { if (e.target.closest(".tinyIcon")) return; onStartDrag(t, e.clientX, e.clientY); }}
+            >
+              <GripVertical size={13} />
+              <span className="uncatTitle">{t.title}</span>
+              {info && <span className="badge" style={{ color: TONE_COLOR[info.tone] }}>{info.label}</span>}
+              <button className="tinyIcon" onClick={(e) => { e.stopPropagation(); onDelete(tid); }} aria-label="Delete">
+                <Trash2 size={13} />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function Sheet({ title, onClose, onBack, children, wide }) {
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className={"sheet" + (wide ? " sheetWide" : "")} onClick={(e) => e.stopPropagation()}>
+        <div className="sheetHead">
+          <div className="sheetHeadLeft">
+            {onBack && (
+              <button className="iconBtn" onClick={onBack} aria-label="Back">
+                <ChevronRight size={17} style={{ transform: "rotate(180deg)" }} />
+              </button>
+            )}
+            <h2 className="sheetTitle">{title}</h2>
+          </div>
+          <button className="iconBtn" onClick={onClose} aria-label="Close"><X size={18} /></button>
+        </div>
+        <div className="sheetBody">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function Page({ title, onBack, afterTitle, headerRight, children }) {
+  const bodyRef = useRef(null);
+
+  useEffect(() => {
+    if (bodyRef.current) bodyRef.current.scrollTop = 0;
+  }, [title]);
+
+  return (
+    <div className="pageView">
+      <div className="pageHeader">
+        <button className="iconBtn" onClick={onBack} aria-label="Back">
+          <ChevronRight size={19} style={{ transform: "rotate(180deg)" }} />
+        </button>
+        <h2 className="pageTitle">{title}</h2>
+        {afterTitle}
+        {headerRight && <div className="pageHeaderRight">{headerRight}</div>}
+      </div>
+      <div className="pageBody" ref={bodyRef}>{children}</div>
+    </div>
+  );
+}
+
+function RepeatEditor({ value, onChange, deadline }) {
+  const rep = value || noRepeat();
+  const [intervalText, setIntervalText] = useState(String(rep.interval));
+  const [countText, setCountText] = useState(String(rep.endCount || 5));
+
+  useEffect(() => { setIntervalText(String(rep.interval)); }, [rep.interval]);
+  useEffect(() => { setCountText(String(rep.endCount || 5)); }, [rep.endCount]);
+
+  const setFreq = (freq) => {
+    if (freq === "none") { onChange(noRepeat()); return; }
+    onChange({ ...noRepeat(), ...rep, freq, byDay: freq === "week" ? rep.byDay : [] });
+  };
+  const handleIntervalChange = (raw) => {
+    setIntervalText(raw);
+    const n = Number(raw);
+    if (raw !== "" && Number.isFinite(n) && n >= 1) onChange({ ...rep, interval: Math.floor(n) });
+  };
+  const handleIntervalBlur = () => {
+    const n = Number(intervalText);
+    if (!intervalText || !Number.isFinite(n) || n < 1) setIntervalText(String(rep.interval));
+  };
+  const toggleDay = (code) => {
+    const has = rep.byDay.includes(code);
+    onChange({ ...rep, byDay: has ? rep.byDay.filter((c) => c !== code) : [...rep.byDay, code] });
+  };
+  const setEndType = (endType) => onChange({ ...rep, endType, endCount: endType === "count" ? (rep.endCount || 5) : rep.endCount });
+  const handleCountChange = (raw) => {
+    setCountText(raw);
+    const n = Number(raw);
+    if (raw !== "" && Number.isFinite(n) && n >= 1) onChange({ ...rep, endCount: Math.floor(n) });
+  };
+  const handleCountBlur = () => {
+    const n = Number(countText);
+    if (!countText || !Number.isFinite(n) || n < 1) setCountText(String(rep.endCount || 5));
+  };
+
+  const unitWord = { day: "day", week: "week", month: "month", year: "year" }[rep.freq] || "week";
+  const preview = describeRepeat(rep, deadline);
+  const needsDeadlineHint = (rep.freq === "month" || rep.freq === "year") && !deadline;
+
+  return (
+    <div>
+      <select className="select" value={rep.freq} onChange={(e) => setFreq(e.target.value)}>
+        <option value="none">Doesn't repeat</option>
+        <option value="day">Every day</option>
+        <option value="week">Every week</option>
+        <option value="month">Every month</option>
+        <option value="year">Every year</option>
+      </select>
+
+      {rep.freq !== "none" && (
+        <div className="repeatAdvanced">
+          <div className="repeatIntervalRow">
+            <span>Every</span>
+            <input
+              className="textInput repeatIntervalInput"
+              type="number"
+              min="1"
+              value={intervalText}
+              onChange={(e) => handleIntervalChange(e.target.value)}
+              onBlur={handleIntervalBlur}
+            />
+            <span>{unitWord}{rep.interval > 1 ? "s" : ""}</span>
+          </div>
+
+          {rep.freq === "week" && (
+            <div className="repeatWeekdayBlock">
+              <label className="fieldLabel" style={{ margin: "10px 0 6px" }}>Repeat on</label>
+              <div className="weekdayRow">
+                {DAY_CODES.map((code) => (
+                  <button
+                    key={code}
+                    type="button"
+                    className={"weekdayChip" + (rep.byDay.includes(code) ? " weekdayChipActive" : "")}
+                    onClick={() => toggleDay(code)}
+                    aria-label={DAY_NAMES[code]}
+                    aria-pressed={rep.byDay.includes(code)}
+                  >
+                    {DAY_LABELS[code]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <label className="fieldLabel" style={{ margin: "10px 0 6px" }}>Ends</label>
+          <label className="repeatEndOption">
+            <input type="radio" name="repeatEnd" checked={rep.endType === "never"} onChange={() => setEndType("never")} />
+            Never
+          </label>
+          <label className="repeatEndOption">
+            <input type="radio" name="repeatEnd" checked={rep.endType === "count"} onChange={() => setEndType("count")} />
+            After
+            <input
+              className="textInput repeatCountInput"
+              type="number"
+              min="1"
+              value={countText}
+              disabled={rep.endType !== "count"}
+              onChange={(e) => handleCountChange(e.target.value)}
+              onBlur={handleCountBlur}
+              onFocus={() => { if (rep.endType !== "count") setEndType("count"); }}
+            />
+            occurrences
+          </label>
+
+          {needsDeadlineHint && (
+            <p className="repeatPreview repeatPreviewHint">Set a deadline above to choose which day it repeats on.</p>
+          )}
+          {preview && !needsDeadlineHint && (
+            <p className="repeatPreview">Repeats: {preview}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CategoryPicker({ categories, initialCategoryId, onChange, allowUncategorized }) {
+  const topLevelCategories = categories.filter((c) => !c.parentId);
+  const initialCat = initialCategoryId ? categories.find((c) => c.id === initialCategoryId) : null;
+  const initialIsUncategorized = allowUncategorized && !initialCategoryId;
+  const initialTopId = initialCat ? (initialCat.parentId || initialCat.id) : (topLevelCategories[0]?.id ?? "");
+
+  const [topCategoryId, setTopCategoryId] = useState(initialIsUncategorized ? "__uncategorized__" : initialTopId);
+  const [creatingCat, setCreatingCat] = useState(categories.length === 0);
+  const [newCatName, setNewCatName] = useState("");
+  const [newCatColor, setNewCatColor] = useState(PALETTE_KEYS[0]);
+
+  const isUncategorizedSelected = allowUncategorized && topCategoryId === "__uncategorized__";
+  const children = isUncategorizedSelected ? [] : categories.filter((c) => c.parentId === topCategoryId);
+  const initialSubId = initialCat && initialCat.parentId ? initialCat.id : (children[0]?.id ?? "");
+  const [subCategoryId, setSubCategoryId] = useState(initialSubId);
+  const [creatingSub, setCreatingSub] = useState(false);
+  const [newSubName, setNewSubName] = useState("");
+  const [newSubColor, setNewSubColor] = useState(PALETTE_KEYS[0]);
+
+  const finalCategoryId = children.length > 0 ? subCategoryId : topCategoryId;
+
+  useEffect(() => {
+    if (isUncategorizedSelected) {
+      onChange({ categoryId: null, newCategoryName: null, newCategoryColor: null, newCategoryParentId: null, isValid: true });
+      return;
+    }
+    onChange({
+      categoryId: (creatingCat || creatingSub) ? null : finalCategoryId,
+      newCategoryName: creatingCat ? newCatName.trim() : (creatingSub ? newSubName.trim() : null),
+      newCategoryColor: creatingCat ? newCatColor : (creatingSub ? newSubColor : null),
+      newCategoryParentId: creatingSub ? topCategoryId : null,
+      isValid: creatingCat ? !!newCatName.trim() : (creatingSub ? !!newSubName.trim() : (children.length === 0 || !!subCategoryId)),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topCategoryId, subCategoryId, creatingCat, newCatName, newCatColor, creatingSub, newSubName, newSubColor]);
+
+  const handleTopChange = (id) => {
+    setTopCategoryId(id);
+    if (id === "__uncategorized__") { setCreatingSub(false); setSubCategoryId(""); return; }
+    const kids = categories.filter((c) => c.parentId === id);
+    setSubCategoryId(kids[0]?.id ?? "");
+    setCreatingSub(false);
+    setNewSubName("");
+  };
+
+  return (
+    <div>
+      {!creatingCat ? (
+        <div>
+          <div className="catPicker">
+            <select className="select" value={topCategoryId} onChange={(e) => handleTopChange(e.target.value)}>
+              {allowUncategorized && <option value="__uncategorized__">Unassigned</option>}
+              {topLevelCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <button className="miniLink" onClick={() => setCreatingCat(true)}>+ new class subject</button>
+          </div>
+          {!isUncategorizedSelected && children.length > 0 && (
+            <>
+              <label className="fieldLabel" style={{ margin: "10px 0 4px" }}>Subcategory</label>
+              {!creatingSub ? (
+                <div className="catPicker">
+                  <select
+                    className="select"
+                    value={subCategoryId}
+                    onChange={(e) => {
+                      if (e.target.value === "__new__") { setCreatingSub(true); setNewSubColor(topLevelCategories.find((c) => c.id === topCategoryId)?.color || PALETTE_KEYS[0]); }
+                      else setSubCategoryId(e.target.value);
+                    }}
+                  >
+                    {children.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    <option value="__new__">+ New subcategory…</option>
+                  </select>
+                </div>
+              ) : (
+                <div>
+                  <input className="textInput" placeholder="e.g. Chemistry" value={newSubName} onChange={(e) => setNewSubName(e.target.value)} />
+                  <div className="swatchRow">
+                    {PALETTE_KEYS.map((k) => (
+                      <button
+                        key={k}
+                        className={"swatch" + (newSubColor === k ? " swatchActive" : "")}
+                        style={{ background: PALETTE[k].solid }}
+                        onClick={() => setNewSubColor(k)}
+                        aria-label={k}
+                      />
+                    ))}
+                  </div>
+                  <button className="miniLink" onClick={() => { setCreatingSub(false); setNewSubName(""); }}>use an existing subcategory</button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      ) : (
+        <div>
+          <input className="textInput" placeholder="e.g. Chemistry" value={newCatName} onChange={(e) => setNewCatName(e.target.value)} />
+          <div className="swatchRow">
+            {PALETTE_KEYS.map((k) => (
+              <button
+                key={k}
+                className={"swatch" + (newCatColor === k ? " swatchActive" : "")}
+                style={{ background: PALETTE[k].solid }}
+                onClick={() => setNewCatColor(k)}
+                aria-label={k}
+              />
+            ))}
+          </div>
+          {categories.length > 0 && <button className="miniLink" onClick={() => setCreatingCat(false)}>use an existing class subject</button>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TaskModal({ categories, initialCategoryId, onClose, onSubmit }) {
+  const [title, setTitle] = useState("");
+  const [deadline, setDeadline] = useState("");
+  const [repeat, setRepeat] = useState(noRepeat());
+  const [notes, setNotes] = useState("");
+  const [error, setError] = useState("");
+  const [categoryChoice, setCategoryChoice] = useState(null);
+
+  const submit = () => {
+    if (!title.trim()) { setError("Give the assignment a title."); return; }
+    if (categoryChoice && !categoryChoice.isValid) {
+      setError(categoryChoice.newCategoryName !== null ? "Name the new class subject." : "Pick a subcategory.");
+      return;
+    }
+    let finalDeadline = deadline || null;
+    if (!finalDeadline) finalDeadline = initialDeadlineForRepeat(repeat);
+    onSubmit({
+      categoryId: categoryChoice?.categoryId ?? null,
+      newCategoryName: categoryChoice?.newCategoryName ?? null,
+      newCategoryColor: categoryChoice?.newCategoryColor ?? null,
+      newCategoryParentId: categoryChoice?.newCategoryParentId ?? null,
+      title: title.trim(),
+      deadline: finalDeadline,
+      repeat,
+      notes: notes.trim(),
+    });
+  };
+
+  return (
+    <Sheet title="Add an assignment" onClose={onClose}>
+      <label className="fieldLabel">Assignment title</label>
+      <input className="textInput" placeholder="e.g. Finish problem set 4" value={title} onChange={(e) => setTitle(e.target.value)} />
+
+      <label className="fieldLabel">Class Subject</label>
+      <CategoryPicker categories={categories} initialCategoryId={initialCategoryId} onChange={setCategoryChoice} />
+
+      <label className="fieldLabel">Deadline (optional)</label>
+      <input className="textInput" type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+
+      <label className="fieldLabel">Repeat</label>
+      <RepeatEditor value={repeat} onChange={setRepeat} deadline={deadline} />
+
+      <label className="fieldLabel">Notes (optional)</label>
+      <textarea className="textArea" placeholder="Anything worth remembering about this assignment" value={notes} onChange={(e) => setNotes(e.target.value)} />
+
+      {error && <p className="errorText">{error}</p>}
+      <button className="primaryBtn" onClick={submit}>Add assignment</button>
+    </Sheet>
+  );
+}
+
+function TaskDetailModal({ task, category, categories, onClose, onRequestDelete, onComplete, onSave }) {
+  const c = PALETTE[category?.color] || PALETTE.teal;
+  const [title, setTitle] = useState(task.title);
+  const [deadline, setDeadline] = useState(task.deadline || "");
+  const [repeat, setRepeat] = useState(task.repeat && typeof task.repeat === "object" ? task.repeat : noRepeat());
+  const [notes, setNotes] = useState(task.notes || "");
+  const [error, setError] = useState("");
+  const [categoryChoice, setCategoryChoice] = useState(null);
+
+  const currentCategoryId = task.categoryId ?? null;
+  const categoryChanged = categoryChoice != null && (
+    categoryChoice.newCategoryName || categoryChoice.categoryId !== currentCategoryId
+  );
+  const dirty = title !== task.title || deadline !== (task.deadline || "") || repeat !== task.repeat || notes !== (task.notes || "") || categoryChanged;
+
+  const save = () => {
+    if (!title.trim()) { setError("Give the assignment a title."); return; }
+    if (categoryChoice && !categoryChoice.isValid) {
+      setError(categoryChoice.newCategoryName !== null ? "Name the new class subject." : "Pick a subcategory.");
+      return;
+    }
+    let finalDeadline = deadline || null;
+    if (!finalDeadline) finalDeadline = initialDeadlineForRepeat(repeat);
+    onSave({
+      title: title.trim(),
+      deadline: finalDeadline,
+      repeat,
+      notes: notes.trim(),
+      categoryId: categoryChoice ? categoryChoice.categoryId : currentCategoryId,
+      newCategoryName: categoryChoice?.newCategoryName ?? null,
+      newCategoryColor: categoryChoice?.newCategoryColor ?? null,
+      newCategoryParentId: categoryChoice?.newCategoryParentId ?? null,
+    });
+  };
+
+  return (
+    <Sheet title={category?.name || "Assignment"} onClose={onClose}>
+      <div className="detailHead">
+        <span className="dot" style={{ background: c.solid }} />
+        <input className="detailTitleInput" value={title} onChange={(e) => setTitle(e.target.value)} />
+      </div>
+
+      <label className="fieldLabel">Class Subject</label>
+      <CategoryPicker categories={categories} initialCategoryId={currentCategoryId} onChange={setCategoryChoice} allowUncategorized />
+
+      <label className="fieldLabel">Deadline</label>
+      <input className="textInput" type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+
+      <label className="fieldLabel">Repeat</label>
+      <RepeatEditor value={repeat} onChange={setRepeat} deadline={deadline} />
+
+      <label className="fieldLabel">Notes</label>
+      <textarea className="textArea" placeholder="Anything worth remembering about this assignment" value={notes} onChange={(e) => setNotes(e.target.value)} />
+
+      {error && <p className="errorText">{error}</p>}
+
+      <div className="detailActions">
+        {dirty && <button className="primaryBtn" onClick={save}>Save changes</button>}
+        <button className={dirty ? "ghostBtn" : "primaryBtn"} style={dirty ? { marginTop: 0 } : undefined} onClick={onComplete}>Mark done</button>
+        <button className="dangerLink" onClick={onRequestDelete}><Trash2 size={14} />Delete assignment</button>
+      </div>
+    </Sheet>
+  );
+}
+
+function ConfirmDeleteTaskModal({ task, onCancel, onConfirm }) {
+  return (
+    <Sheet title="Delete assignment?" onClose={onCancel}>
+      <p className="sheetHint">"{task.title}" will be permanently deleted. This can't be undone.</p>
+      <button className="primaryBtn" style={{ background: "var(--danger)" }} onClick={onConfirm}>Delete assignment</button>
+      <button className="ghostBtn" onClick={onCancel}>Cancel</button>
+    </Sheet>
+  );
+}
+
+function SkipDeadlineModal({ task, onCancel, onKeepAndSkip, onUpdateAndSkip }) {
+  const [newDate, setNewDate] = useState(task.deadline || "");
+  const info = deadlineInfo(task.deadline);
+  return (
+    <Sheet title="Skip this assignment?" onClose={onCancel}>
+      <p className="sheetHint">
+        "{task.title}" {info ? `is ${info.label.toLowerCase()}` : "has a deadline"}. Want to revise it before sending this to the back of the queue?
+      </p>
+      <label className="fieldLabel">New deadline</label>
+      <input className="textInput" type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
+      <button className="primaryBtn" onClick={() => onUpdateAndSkip(newDate || null)}>Update deadline & skip</button>
+      <button className="ghostBtn" onClick={onKeepAndSkip}>Keep deadline, skip anyway</button>
+    </Sheet>
+  );
+}
+
+function TodaySelectorModal({ categories, tasks, onToggle, onApplyFilter, onClose }) {
+  const topLevel = categories.filter((c) => !c.parentId);
+  const childrenOf = (pid) => categories.filter((c) => c.parentId === pid);
+
+  const rowFor = (c) => {
+    const col = PALETTE[c.color] || PALETTE.teal;
+    const front = c.queue[0] ? tasks[c.queue[0]] : null;
+    const info = front ? deadlineInfo(front.deadline) : null;
+    return (
+      <label key={c.id} className="toggleRow">
+        <span className="toggleLeft">
+          <span className="dot" style={{ background: col.solid }} />
+          {c.name}
+          {info && <span className="toggleDue" style={{ color: TONE_COLOR[info.tone] }}>{info.label}</span>}
+        </span>
+        <input type="checkbox" checked={c.visible} onChange={() => onToggle(c.id)} />
+      </label>
+    );
+  };
+
+  return (
+    <Sheet title="Show for today" onClose={onClose}>
+      <p className="sheetHint">Pick which class subjects appear on your Homework screen. The rest keep waiting quietly.</p>
+
+      <div className="filterRow">
+        <button className="filterBtn" onClick={() => onApplyFilter("today")}>Due today</button>
+        <button className="filterBtn" onClick={() => onApplyFilter("week")}>Due this week</button>
+        <button className="filterBtn" onClick={() => onApplyFilter("month")}>Due this month</button>
+        <button className="filterBtn" onClick={() => onApplyFilter("all")}>Show all</button>
+      </div>
+
+      <div className="toggleList">
+        {topLevel.map((cat) => {
+          const kids = childrenOf(cat.id);
+          if (kids.length === 0) return rowFor(cat);
+          const col = PALETTE[cat.color] || PALETTE.teal;
+          return (
+            <div key={cat.id} className="todayGroup">
+              <div className="todayGroupHeader">
+                <span className="dot" style={{ background: col.solid }} />
+                {cat.name}
+              </div>
+              <div className="todayChildren">{kids.map(rowFor)}</div>
+            </div>
+          );
+        })}
+        {categories.length === 0 && <p className="emptyBody">No class subjects yet.</p>}
+      </div>
+    </Sheet>
+  );
+}
+
+function AllTasksCategoryRows({ leaf, tasks, draggingId, onStartDrag, onOpenTask, registerRowDropZone }) {
+  const itemRefs = useRef({});
+  const prevTopsRef = useRef({});
+  const orderKey = leaf.queue.join(",");
+
+  useLayoutEffect(() => {
+    const newTops = {};
+    leaf.queue.forEach((tid) => {
+      const el = itemRefs.current[tid];
+      if (el) newTops[tid] = el.getBoundingClientRect().top;
+    });
+    leaf.queue.forEach((tid) => {
+      if (tid === draggingId) return;
+      const el = itemRefs.current[tid];
+      if (!el) return;
+      const prevTop = prevTopsRef.current[tid];
+      const newTop = newTops[tid];
+      if (prevTop != null && newTop != null && prevTop !== newTop) {
+        const deltaY = prevTop - newTop;
+        el.style.transition = "none";
+        el.style.transform = `translateY(${deltaY}px)`;
+        requestAnimationFrame(() => {
+          el.style.transition = "transform 0.22s ease";
+          el.style.transform = "";
+        });
+      }
+    });
+    prevTopsRef.current = newTops;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderKey, draggingId]);
+
+  if (leaf.queue.length === 0) return <p className="emptyBody">Nothing queued.</p>;
+
+  return (
+    <>
+      {leaf.queue.map((tid, idx) => {
+        const t = tasks[tid];
+        if (!t) return null;
+        const info = deadlineInfo(t.deadline);
+        return (
+          <div
+            key={tid}
+            ref={(el) => {
+              itemRefs.current[tid] = el;
+              registerRowDropZone?.(tid, el);
+            }}
+            className={"catListRow draggableTaskRow" + (draggingId === tid ? " rowArmed" : "")}
+            onPointerDown={(e) => { onStartDrag(t, e.clientX, e.clientY, { fromCategoryId: leaf.id, onTap: () => onOpenTask(t) }); }}
+          >
+            <GripVertical size={13} color="var(--ink-soft)" />
+            <span className="queueIdx">{idx + 1}</span>
+            <span className="catName" style={{ fontWeight: idx === 0 ? 600 : 400 }}>{t.title}</span>
+            {info && <span className="badge" style={{ color: idx === 0 ? TONE_COLOR[info.tone] : "var(--ink-soft)" }}>{info.label}</span>}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+function AllTasksModal({ categories, tasks, uncategorizedIds, onBack, onOpenTask, onStartDrag, registerDropZone, registerRowDropZone, hoveredCategoryId, draggingId, onAssignUncategorized, hiddenIds, onOpenFilter, onShowAll }) {
+  const topLevel = categories.filter((c) => !c.parentId);
+  const leaves = [];
+  topLevel.forEach((cat) => {
+    const kids = categories.filter((c) => c.parentId === cat.id);
+    if (kids.length === 0) leaves.push(cat);
+    else kids.forEach((k) => leaves.push(k));
+  });
+
+  const visibleLeaves = leaves.filter((l) => !hiddenIds.has(l.id));
+  const showUncategorized = !hiddenIds.has("__uncategorized__") && uncategorizedIds.length > 0;
+  const isFiltered = hiddenIds.size > 0;
+
+  return (
+    <Page
+      title="All assignments"
+      onBack={onBack}
+      headerRight={
+        <button className={"iconBtn" + (isFiltered ? " filterActiveBadge" : "")} onClick={onOpenFilter} aria-label="Filter class subjects">
+          <Settings2 size={17} />
+        </button>
+      }
+    >
+      <p className="sheetHint">Press and hold an assignment, then drag it onto a class subject to move it — or tap it to open.</p>
+      {isFiltered && (
+        <div className="filterStatusRow">
+          <Settings2 size={13} />
+          <span>Showing {visibleLeaves.length} of {leaves.length} class subjects</span>
+          <button className="miniLink" style={{ marginLeft: "auto" }} onClick={onShowAll}>Show all</button>
+        </div>
+      )}
+      {visibleLeaves.length === 0 && !showUncategorized && (
+        <p className="emptyBody">No class subjects selected. Tap the filter icon to choose some.</p>
+      )}
+      {visibleLeaves.map((leaf) => {
+        const col = PALETTE[leaf.color] || PALETTE.teal;
+        return (
+          <div
+            key={leaf.id}
+            ref={(el) => registerDropZone(leaf.id, el)}
+            className={"todayGroup" + (hoveredCategoryId === leaf.id ? " dropTargetActive" : "")}
+          >
+            <div className="todayGroupHeader">
+              <span className="dot" style={{ background: col.solid }} />
+              {leaf.name}
+              <span className="catCount">{leaf.queue.length}</span>
+            </div>
+            <AllTasksCategoryRows
+              leaf={leaf}
+              tasks={tasks}
+              draggingId={draggingId}
+              onStartDrag={onStartDrag}
+              onOpenTask={onOpenTask}
+              registerRowDropZone={registerRowDropZone}
+            />
+          </div>
+        );
+      })}
+
+      {showUncategorized && (
+        <div
+          ref={(el) => registerDropZone("__uncategorized__", el)}
+          className={"todayGroup" + (hoveredCategoryId === "__uncategorized__" ? " dropTargetActive" : "")}
+        >
+          <div className="todayGroupHeader">Unassigned <span className="catCount">{uncategorizedIds.length}</span></div>
+          {uncategorizedIds.map((tid) => {
+            const t = tasks[tid];
+            if (!t) return null;
+            return (
+              <div
+                key={tid}
+                className={"catListRow draggableTaskRow" + (draggingId === tid ? " rowArmed" : "")}
+                onPointerDown={(e) => { onStartDrag(t, e.clientX, e.clientY, { fromCategoryId: null, onTap: () => onAssignUncategorized(t) }); }}
+              >
+                <GripVertical size={13} color="var(--ink-soft)" />
+                <span className="catName">{t.title}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Page>
+  );
+}
+
+function AllTasksFilterModal({ categories, hiddenIds, onToggle, onShowAll, onClose }) {
+  const topLevel = categories.filter((c) => !c.parentId);
+  const childrenOf = (pid) => categories.filter((c) => c.parentId === pid);
+
+  const rowFor = (c) => (
+    <label key={c.id} className="toggleRow">
+      <span className="toggleLeft">
+        <span className="dot" style={{ background: (PALETTE[c.color] || PALETTE.teal).solid }} />
+        {c.name}
+      </span>
+      <input type="checkbox" checked={!hiddenIds.has(c.id)} onChange={() => onToggle(c.id)} />
+    </label>
+  );
+
+  return (
+    <Sheet title="Filter class subjects" onClose={onClose}>
+      <p className="sheetHint">Choose which class subjects show up on the All Assignments page.</p>
+      <button className="miniLink" style={{ marginLeft: 0, marginBottom: 10 }} onClick={onShowAll}>Show all</button>
+      <div className="toggleList">
+        {topLevel.map((cat) => {
+          const kids = childrenOf(cat.id);
+          if (kids.length === 0) return rowFor(cat);
+          return (
+            <div key={cat.id} className="todayGroup">
+              <div className="todayGroupHeader">
+                <span className="dot" style={{ background: (PALETTE[cat.color] || PALETTE.teal).solid }} />
+                {cat.name}
+              </div>
+              <div className="todayChildren">{kids.map(rowFor)}</div>
+            </div>
+          );
+        })}
+        <label className="toggleRow">
+          <span className="toggleLeft">Unassigned</span>
+          <input type="checkbox" checked={!hiddenIds.has("__uncategorized__")} onChange={() => onToggle("__uncategorized__")} />
+        </label>
+        {categories.length === 0 && <p className="emptyBody">No class subjects yet.</p>}
+      </div>
+    </Sheet>
+  );
+}
+
+function CompletedHistoryModal({ log, initialFilter, onBack, onReadd, categories, retentionDays, onUpdateRetention }) {
+  const [filter, setFilter] = useState(initialFilter || "today");
+  const [addedIds, setAddedIds] = useState(() => new Set());
+  const now = Date.now();
+  const filtered = log
+    .filter((e) => {
+      if (filter === "today") return new Date(e.completedAt).toDateString() === new Date().toDateString();
+      if (filter === "week") return now - e.completedAt <= 7 * 86400000;
+      if (filter === "month") return now - e.completedAt <= 30 * 86400000;
+      return true;
+    })
+    .sort((a, b) => b.completedAt - a.completedAt);
+
+  const handleReadd = (entry) => {
+    onReadd(entry);
+    setAddedIds((prev) => new Set(prev).add(entry.id));
+  };
+
+  return (
+    <Page title="Completed assignments" onBack={onBack}>
+      <div className="filterRow">
+        <button className={"filterBtn" + (filter === "today" ? " filterBtnActive" : "")} onClick={() => setFilter("today")}>Today</button>
+        <button className={"filterBtn" + (filter === "week" ? " filterBtnActive" : "")} onClick={() => setFilter("week")}>This week</button>
+        <button className={"filterBtn" + (filter === "month" ? " filterBtnActive" : "")} onClick={() => setFilter("month")}>This month</button>
+        <button className={"filterBtn" + (filter === "all" ? " filterBtnActive" : "")} onClick={() => setFilter("all")}>All</button>
+      </div>
+      <div className="retentionRow">
+        <span>Auto-delete history after</span>
+        <select className="select retentionSelect" value={retentionDays || 0} onChange={(e) => onUpdateRetention(Number(e.target.value) || null)}>
+          <option value={30}>30 days</option>
+          <option value={60}>60 days</option>
+          <option value={90}>90 days</option>
+          <option value={180}>6 months</option>
+          <option value={365}>1 year</option>
+          <option value={0}>Never</option>
+        </select>
+      </div>
+      {filtered.length === 0 && <p className="emptyBody">Nothing completed in this range yet.</p>}
+      <div className="queueList">
+        {filtered.map((e) => {
+          const col = PALETTE[e.categoryColor] || PALETTE.teal;
+          const d = new Date(e.completedAt);
+          const timeLabel = d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " · " + d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+          const categoryGone = !categories.some((c) => c.id === e.categoryId);
+          const added = addedIds.has(e.id);
+          return (
+            <div key={e.id} className="queueRow">
+              <span className="dot" style={{ background: col.solid }} />
+              <span className="queueTitle">{e.title}</span>
+              <span className="catCount" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{timeLabel}</span>
+              <button
+                className="tinyIcon"
+                onClick={() => handleReadd(e)}
+                disabled={added}
+                aria-label={categoryGone ? `Add back to Unassigned` : `Add back to ${e.categoryName}`}
+                title={added ? "Added" : categoryGone ? `Add back (${e.categoryName} was deleted — goes to Unassigned)` : `Add back to ${e.categoryName}`}
+              >
+                {added ? <Check size={13} /> : <Plus size={13} />}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </Page>
+  );
+}
+
+function BrainDumpModal({ onClose, onSubmit }) {
+  const [text, setText] = useState("");
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  return (
+    <Sheet title="Brain dump" onClose={onClose}>
+      <p className="sheetHint">Type one assignment per line. Sort them into class subjects whenever you're ready.</p>
+      <textarea
+        className="textArea"
+        style={{ minHeight: 160 }}
+        placeholder={"Finish reading ch. 5\nStudy for chemistry quiz\nReturn library books"}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        autoFocus
+      />
+      <button className="primaryBtn" disabled={lines.length === 0} onClick={() => onSubmit(lines)}>
+        Add {lines.length || ""} assignment{lines.length === 1 ? "" : "s"}
+      </button>
+    </Sheet>
+  );
+}
+
+function AssignCategoryModal({ task, categories, onAssign, onCreateAndAssign, onClose }) {
+  const [newName, setNewName] = useState("");
+  const [newColor, setNewColor] = useState(PALETTE_KEYS[0]);
+  const leafCats = categories.filter((c) => !categories.some((cc) => cc.parentId === c.id));
+
+  return (
+    <Sheet title="Assign a class subject" onClose={onClose}>
+      <p className="sheetHint">"{task.title}" — pick where this belongs.</p>
+      <div className="catList">
+        {leafCats.map((c) => {
+          const col = PALETTE[c.color] || PALETTE.teal;
+          return (
+            <button key={c.id} className="catListRow" onClick={() => onAssign(c.id)}>
+              <span className="dot" style={{ background: col.solid }} />
+              <span className="catName">{c.name}</span>
+              <ChevronRight size={16} color="var(--ink-soft)" />
+            </button>
+          );
+        })}
+        {leafCats.length === 0 && <p className="emptyBody">No class subjects yet — create one below.</p>}
+      </div>
+
+      <div className="newCatRow" style={{ marginTop: 16 }}>
+        <input className="textInput" placeholder="Or create a new class subject" value={newName} onChange={(e) => setNewName(e.target.value)} />
+        <div className="swatchRow">
+          {PALETTE_KEYS.map((k) => (
+            <button key={k} className={"swatch" + (newColor === k ? " swatchActive" : "")} style={{ background: PALETTE[k].solid }} onClick={() => setNewColor(k)} aria-label={k} />
+          ))}
+        </div>
+        <button className="ghostBtn" onClick={() => { if (newName.trim()) onCreateAndAssign(newName.trim(), newColor); }}>Create & assign</button>
+      </div>
+    </Sheet>
+  );
+}
+
+function DraggableRowList({ items, onReorder, renderRow }) {
+  const [order, setOrder] = useState(items.map((it) => it.id));
+  const [dragId, setDragId] = useState(null);
+  const [dragOffset, setDragOffset] = useState(0);
+  const dragInfo = useRef(null);
+  const itemRefs = useRef({});
+  const prevTopsRef = useRef({});
+
+  useEffect(() => {
+    setOrder((prev) => {
+      const incoming = items.map((it) => it.id);
+      const same = prev.length === incoming.length && prev.every((id, i) => id === incoming[i]);
+      return same ? prev : incoming;
+    });
+  }, [items]);
+
+  useLayoutEffect(() => {
+    const newTops = {};
+    order.forEach((id) => {
+      const el = itemRefs.current[id];
+      if (el) newTops[id] = el.getBoundingClientRect().top;
+    });
+    order.forEach((id) => {
+      if (id === dragId) return;
+      const el = itemRefs.current[id];
+      if (!el) return;
+      const prevTop = prevTopsRef.current[id];
+      const newTop = newTops[id];
+      if (prevTop != null && newTop != null && prevTop !== newTop) {
+        const deltaY = prevTop - newTop;
+        el.style.transition = "none";
+        el.style.transform = `translateY(${deltaY}px)`;
+        requestAnimationFrame(() => {
+          el.style.transition = "transform 0.22s ease";
+          el.style.transform = "";
+        });
+      }
+    });
+    prevTopsRef.current = newTops;
+  }, [order, dragId]);
+
+  const byId = Object.fromEntries(items.map((it) => [it.id, it]));
+
+  const onHandleDown = (id, clientY) => {
+    const idx = order.indexOf(id);
+    const el = itemRefs.current[id];
+    const step = (el?.offsetHeight || 38) + 4;
+    dragInfo.current = { id, startY: clientY, startIndex: idx, step, order: [...order] };
+    setDragId(id);
+    setDragOffset(0);
+  };
+
+  const onMove = (clientY) => {
+    const info = dragInfo.current;
+    if (!info) return;
+    const delta = clientY - info.startY;
+    const rawShift = Math.round(delta / info.step);
+    const targetIndex = Math.min(Math.max(info.startIndex + rawShift, 0), info.order.length - 1);
+    const actualShift = targetIndex - info.startIndex;
+    setDragOffset(delta - actualShift * info.step);
+    const without = info.order.filter((id) => id !== info.id);
+    without.splice(targetIndex, 0, info.id);
+    setOrder((prev) => {
+      const same = prev.length === without.length && prev.every((id, i) => id === without[i]);
+      return same ? prev : without;
+    });
+  };
+
+  const endDrag = () => {
+    if (dragInfo.current) {
+      const changed = order.length !== dragInfo.current.order.length || order.some((id, i) => id !== dragInfo.current.order[i]);
+      if (changed) onReorder(order);
+    }
+    dragInfo.current = null;
+    setDragId(null);
+    setDragOffset(0);
+  };
+
+  return (
+    <div className="dragRowList">
+      {order.map((id, idx) => {
+        const item = byId[id];
+        if (!item) return null;
+        const dragging = dragId === id;
+        return (
+          <div
+            key={id}
+            ref={(el) => (itemRefs.current[id] = el)}
+            className={"dragRow" + (dragging ? " dragRowActive" : "")}
+            style={dragging ? { transform: `translateY(${dragOffset}px)`, zIndex: 30 } : undefined}
+          >
+            <button
+              className="dragRowHandle"
+              aria-label="Reorder"
+              onMouseDown={(e) => onHandleDown(id, e.clientY)}
+              onMouseMove={(e) => dragId === id && onMove(e.clientY)}
+              onMouseUp={endDrag}
+              onMouseLeave={() => dragId === id && endDrag()}
+              onTouchStart={(e) => onHandleDown(id, e.touches[0].clientY)}
+              onTouchMove={(e) => { if (dragId === id) onMove(e.touches[0].clientY); }}
+              onTouchEnd={endDrag}
+            >
+              <GripVertical size={13} />
+            </button>
+            <div className="dragRowContent">{renderRow(item, idx, order.length)}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function LongPressRowList({ items, onReorder, renderRow, onTapItem }) {
+  const [order, setOrder] = useState(items.map((it) => it.id));
+  const [dragId, setDragId] = useState(null);
+  const [dragOffset, setDragOffset] = useState(0);
+  const dragInfo = useRef(null);
+  const pendingRef = useRef(null);
+  const pressTimerRef = useRef(null);
+  const itemRefs = useRef({});
+  const prevTopsRef = useRef({});
+
+  useEffect(() => {
+    setOrder((prev) => {
+      const incoming = items.map((it) => it.id);
+      const same = prev.length === incoming.length && prev.every((id, i) => id === incoming[i]);
+      return same ? prev : incoming;
+    });
+  }, [items]);
+
+  useLayoutEffect(() => {
+    const newTops = {};
+    order.forEach((id) => {
+      const el = itemRefs.current[id];
+      if (el) newTops[id] = el.getBoundingClientRect().top;
+    });
+    order.forEach((id) => {
+      if (id === dragId) return;
+      const el = itemRefs.current[id];
+      if (!el) return;
+      const prevTop = prevTopsRef.current[id];
+      const newTop = newTops[id];
+      if (prevTop != null && newTop != null && prevTop !== newTop) {
+        const deltaY = prevTop - newTop;
+        el.style.transition = "none";
+        el.style.transform = `translateY(${deltaY}px)`;
+        requestAnimationFrame(() => {
+          el.style.transition = "transform 0.22s ease";
+          el.style.transform = "";
+        });
+      }
+    });
+    prevTopsRef.current = newTops;
+  }, [order, dragId]);
+
+  const byId = Object.fromEntries(items.map((it) => [it.id, it]));
+
+  const clearPending = () => {
+    if (pressTimerRef.current) { clearTimeout(pressTimerRef.current); pressTimerRef.current = null; }
+    pendingRef.current = null;
+  };
+
+  const armDrag = (id) => {
+    const p = pendingRef.current;
+    if (!p) return;
+    const idx = order.indexOf(id);
+    const el = itemRefs.current[id];
+    const step = (el?.offsetHeight || 38) + 4;
+    dragInfo.current = { id, startY: p.startY, startIndex: idx, step, order: [...order] };
+    if (navigator.vibrate) navigator.vibrate(12);
+    pendingRef.current = null;
+    setDragId(id);
+    setDragOffset(0);
+  };
+
+  const onRowDown = (id, clientX, clientY, e) => {
+    if (e && e.target && e.target.closest && e.target.closest(".tinyIcon")) return;
+    clearPending();
+    pendingRef.current = { id, startX: clientX, startY: clientY };
+    pressTimerRef.current = setTimeout(() => armDrag(id), LONG_PRESS_MS);
+  };
+
+  const onPreArmMove = (id, clientX, clientY) => {
+    const p = pendingRef.current;
+    if (!p || p.id !== id) return;
+    const dist = Math.hypot(clientX - p.startX, clientY - p.startY);
+    if (dist > PRESS_CANCEL_PX) clearPending();
+  };
+
+  const onMove = (clientY) => {
+    const info = dragInfo.current;
+    if (!info) return;
+    const delta = clientY - info.startY;
+    const rawShift = Math.round(delta / info.step);
+    const targetIndex = Math.min(Math.max(info.startIndex + rawShift, 0), info.order.length - 1);
+    const actualShift = targetIndex - info.startIndex;
+    setDragOffset(delta - actualShift * info.step);
+    const without = info.order.filter((id) => id !== info.id);
+    without.splice(targetIndex, 0, info.id);
+    setOrder((prev) => {
+      const same = prev.length === without.length && prev.every((id, i) => id === without[i]);
+      return same ? prev : without;
+    });
+  };
+
+  const endDrag = (id) => {
+    const wasPending = !!pressTimerRef.current && pendingRef.current?.id === id;
+    clearPending();
+    if (dragInfo.current) {
+      const changed = order.length !== dragInfo.current.order.length || order.some((idx2, i) => idx2 !== dragInfo.current.order[i]);
+      if (changed) onReorder(order);
+      dragInfo.current = null;
+      setDragId(null);
+      setDragOffset(0);
+    } else if (wasPending) {
+      const item = byId[id];
+      if (item) onTapItem?.(item);
+    }
+  };
+
+  return (
+    <div className="dragRowList">
+      {order.map((id, idx) => {
+        const item = byId[id];
+        if (!item) return null;
+        const armed = dragId === id;
+        const handlers = {
+          onMouseDown: (e) => onRowDown(id, e.clientX, e.clientY, e),
+          onMouseMove: (e) => { if (dragId === id) onMove(e.clientY); else onPreArmMove(id, e.clientX, e.clientY); },
+          onMouseUp: () => endDrag(id),
+          onMouseLeave: () => { if (dragId === id) endDrag(id); else clearPending(); },
+          onTouchStart: (e) => onRowDown(id, e.touches[0].clientX, e.touches[0].clientY, e),
+          onTouchMove: (e) => { if (dragId === id) onMove(e.touches[0].clientY); else onPreArmMove(id, e.touches[0].clientX, e.touches[0].clientY); },
+          onTouchEnd: () => endDrag(id),
+        };
+        return (
+          <div
+            key={id}
+            ref={(el) => (itemRefs.current[id] = el)}
+            className={"dragRow longPressRow" + (armed ? " dragRowActive rowArmed" : "")}
+            style={armed ? { transform: `translateY(${dragOffset}px)`, zIndex: 30 } : undefined}
+            {...handlers}
+          >
+            <div className="dragRowContent">{renderRow(item, idx, order.length)}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ManageModal({ categories, allCategories, onBack, onAddCategory, onOpenCategory, onOpenChild, onResetExample, onExportData, onImportFile }) {
+  const [newName, setNewName] = useState("");
+  const [newColor, setNewColor] = useState(PALETTE_KEYS[0]);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [importStatus, setImportStatus] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const result = await onImportFile(file);
+    setImportStatus(result);
+    e.target.value = "";
+  };
+
+  const sortedCategories = [...categories].sort((a, b) => a.name.localeCompare(b.name));
+
+  return (
+    <Page title="Class Subjects" onBack={onBack}>
+      <div className="newCatRow">
+        <input className="textInput" placeholder="New class subject name" value={newName} onChange={(e) => setNewName(e.target.value)} />
+        <div className="swatchRow">
+          {PALETTE_KEYS.map((k) => (
+            <button key={k} className={"swatch" + (newColor === k ? " swatchActive" : "")} style={{ background: PALETTE[k].solid }} onClick={() => setNewColor(k)} aria-label={k} />
+          ))}
+        </div>
+        <button className="ghostBtn" onClick={() => { if (newName.trim()) { onAddCategory(newName.trim(), newColor); setNewName(""); } }}>Add class subject</button>
+      </div>
+
+      {sortedCategories.length === 0 && <p className="emptyBody">No class subjects yet — add one above.</p>}
+
+      <div className="catList">
+        {sortedCategories.map((cat) => {
+          const c = PALETTE[cat.color] || PALETTE.teal;
+          const kids = [...allCategories.filter((cc) => cc.parentId === cat.id)].sort((a, b) => a.name.localeCompare(b.name));
+          const countLabel = kids.length > 0
+            ? `${kids.length} subcategor${kids.length === 1 ? "y" : "ies"}`
+            : `${cat.queue.length} assignment${cat.queue.length === 1 ? "" : "s"}`;
+          return (
+            <div key={cat.id}>
+              <button className="catListRow" onClick={() => onOpenCategory(cat.id)}>
+                <span className="dot" style={{ background: c.solid }} />
+                <span className="catName">{cat.name}</span>
+                <span className="catCount">{countLabel}</span>
+                <ChevronRight size={16} color="var(--ink-soft)" />
+              </button>
+              {kids.length > 0 && (
+                <div className="catChildList">
+                  {kids.map((child) => {
+                    const cc = PALETTE[child.color] || PALETTE.teal;
+                    return (
+                      <button key={child.id} className="catListRow catChildRow" onClick={() => onOpenChild(child.id)}>
+                        <span className="dot" style={{ background: cc.solid }} />
+                        <span className="catName">{child.name}</span>
+                        <span className="catCount">{child.queue.length} assignment{child.queue.length === 1 ? "" : "s"}</span>
+                        <ChevronRight size={16} color="var(--ink-soft)" />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ marginTop: 22, paddingTop: 16, borderTop: "1px solid var(--line)" }}>
+        <p className="fieldLabel" style={{ margin: "0 0 8px" }}>Backup</p>
+        <div className="backupRow">
+          <button className="ghostBtn" style={{ marginTop: 0, flex: 1 }} onClick={onExportData}>Export data</button>
+          <button className="ghostBtn" style={{ marginTop: 0, flex: 1 }} onClick={() => fileInputRef.current?.click()}>Import data</button>
+        </div>
+        <input ref={fileInputRef} type="file" accept="application/json" style={{ display: "none" }} onChange={handleFileChange} />
+        {importStatus && (
+          <p className={importStatus.ok ? "successText" : "errorText"} style={{ marginTop: 8 }}>
+            {importStatus.ok ? "Backup restored." : importStatus.message}
+          </p>
+        )}
+      </div>
+
+      <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid var(--line)" }}>
+        {confirmReset ? (
+          <div>
+            <p className="emptyBody" style={{ marginBottom: 8 }}>This replaces everything above with example data — your current class subjects and assignments will be gone.</p>
+            <button className="dangerLink" onClick={onResetExample}>Confirm reset to example data</button>
+          </div>
+        ) : (
+          <button className="miniLink" style={{ marginLeft: 0, color: "var(--ink-soft)" }} onClick={() => setConfirmReset(true)}>Reset to example data</button>
+        )}
+      </div>
+    </Page>
+  );
+}
+
+function ManageCategoryModal({ category, allCategories, tasks, onBack, onDeleteCategory, onRequestDeleteTask, onReorderTasks, onReorderSubcategories, onAddTask, onOpenTask, onAddOrConvertSubcategory, onOpenChildCategory, onUpdateCategory }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState(category.name);
+  const [editColor, setEditColor] = useState(category.color);
+  const [newSubName, setNewSubName] = useState("");
+  const [newSubColor, setNewSubColor] = useState(category.color);
+  const c = PALETTE[category.color] || PALETTE.teal;
+
+  const children = allCategories.filter((cc) => cc.parentId === category.id);
+  const isTopLevel = !category.parentId;
+  const hasChildren = children.length > 0;
+  const totalChildTasks = children.reduce((sum, ch) => sum + ch.queue.length, 0);
+
+  const saveEdit = () => {
+    if (!editName.trim()) return;
+    onUpdateCategory(category.id, { name: editName.trim(), color: editColor });
+    setEditing(false);
+  };
+
+  const deleteWarning = hasChildren
+    ? `This will also permanently delete ${children.length} subcategor${children.length === 1 ? "y" : "ies"} and ${totalChildTasks} assignment${totalChildTasks === 1 ? "" : "s"} inside "${category.name}". This can't be undone.`
+    : `This will also permanently delete ${category.queue.length} assignment${category.queue.length === 1 ? "" : "s"} in "${category.name}". This can't be undone.`;
+
+  return (
+    <Page
+      title={category.name}
+      onBack={onBack}
+      afterTitle={
+        <button className="titleEditBtn" onClick={() => setEditing(true)} aria-label="Edit class subject">
+          <Pencil size={15} />
+        </button>
+      }
+    >
+      {editing ? (
+        <div className="newCatRow">
+          <label className="fieldLabel" style={{ margin: "0 0 6px" }}>{isTopLevel ? "Class Subject" : "Subcategory"} name</label>
+          <input className="textInput" value={editName} onChange={(e) => setEditName(e.target.value)} />
+          <div className="swatchRow">
+            {PALETTE_KEYS.map((k) => (
+              <button key={k} className={"swatch" + (editColor === k ? " swatchActive" : "")} style={{ background: PALETTE[k].solid }} onClick={() => setEditColor(k)} aria-label={k} />
+            ))}
+          </div>
+          <div className="backupRow" style={{ marginTop: 10 }}>
+            <button className="primaryBtn" style={{ marginTop: 0, flex: 1 }} onClick={saveEdit}>Save</button>
+            <button className="ghostBtn" style={{ marginTop: 0, flex: 1 }} onClick={() => { setEditing(false); setEditName(category.name); setEditColor(category.color); setConfirmDelete(false); }}>Cancel</button>
+          </div>
+          {confirmDelete ? (
+            <div style={{ marginTop: 16 }}>
+              <p className="emptyBody" style={{ marginBottom: 8 }}>{deleteWarning}</p>
+              <div className="deleteRow">
+                <button className="dangerLink" onClick={() => onDeleteCategory(category.id)}>Confirm delete {isTopLevel ? "class subject" : "subcategory"}</button>
+              </div>
+            </div>
+          ) : (
+            <div className="deleteRow" style={{ marginTop: 16 }}>
+              <button className="dangerLink" onClick={() => setConfirmDelete(true)}>
+                <Trash2 size={14} /> Delete {isTopLevel ? "class subject" : "subcategory"}
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="manageCatHead">
+          <span className="dot" style={{ background: c.solid }} />
+          <span className="catCount">
+            {hasChildren
+              ? `${children.length} subcategor${children.length === 1 ? "y" : "ies"}`
+              : `${category.queue.length} assignment${category.queue.length === 1 ? "" : "s"} in queue`}
+          </span>
+          <div style={{ flex: 1 }} />
+          {!hasChildren && (
+            <button className="miniFab" onClick={onAddTask} aria-label="Add assignment">
+              <Plus size={16} />
+            </button>
+          )}
+        </div>
+      )}
+
+      {isTopLevel && (
+        <div className="newCatRow">
+          <label className="fieldLabel" style={{ margin: "0 0 6px" }}>
+            {hasChildren ? "Add another subcategory" : "Add a subcategory"}
+          </label>
+          <input className="textInput" placeholder="e.g. Algebra II" value={newSubName} onChange={(e) => setNewSubName(e.target.value)} />
+          <div className="swatchRow">
+            {PALETTE_KEYS.map((k) => (
+              <button key={k} className={"swatch" + (newSubColor === k ? " swatchActive" : "")} style={{ background: PALETTE[k].solid }} onClick={() => setNewSubColor(k)} aria-label={k} />
+            ))}
+          </div>
+          {!hasChildren && category.queue.length > 0 && (
+            <p className="sheetHint" style={{ margin: "8px 0 0" }}>
+              {category.queue.length} existing assignment{category.queue.length === 1 ? "" : "s"} will move into this subcategory.
+            </p>
+          )}
+          <button
+            className="ghostBtn"
+            onClick={() => { if (newSubName.trim()) { onAddOrConvertSubcategory(category.id, newSubName.trim(), newSubColor); setNewSubName(""); } }}
+          >
+            {hasChildren ? "Add subcategory" : "Create subcategory"}
+          </button>
+        </div>
+      )}
+
+      {hasChildren ? (
+        <DraggableRowList
+          items={children.map((ch) => ({ id: ch.id, child: ch }))}
+          onReorder={(newOrderIds) => onReorderSubcategories(category.id, newOrderIds)}
+          renderRow={(item) => {
+            const child = item.child;
+            const col = PALETTE[child.color] || PALETTE.teal;
+            return (
+              <div className="queueRow">
+                <span className="dot" style={{ background: col.solid, marginLeft: 2 }} />
+                <button className="queueTitle queueTitleBtn" onClick={() => onOpenChildCategory(child.id)}>{child.name}</button>
+                <span className="catCount">{child.queue.length}</span>
+              </div>
+            );
+          }}
+        />
+      ) : (
+        <>
+          {category.queue.length === 0 && <p className="emptyBody">No assignments in this queue yet.</p>}
+          {category.queue.length > 0 && (
+            <LongPressRowList
+              items={category.queue.map((tid) => ({ id: tid, taskId: tid }))}
+              onReorder={(newOrderIds) => onReorderTasks(category.id, newOrderIds)}
+              onTapItem={(item) => { const t = tasks[item.taskId]; if (t) onOpenTask(t); }}
+              renderRow={(item, idx) => {
+                const t = tasks[item.taskId];
+                if (!t) return null;
+                return (
+                  <div className={"queueRow" + (idx === 0 ? " queueRowFront" : "")}>
+                    <span className="queueIdx">{idx + 1}</span>
+                    <span className="queueTitle">{t.title}</span>
+                    <div className="queueActions">
+                      <button className="tinyIcon" onClick={() => onRequestDeleteTask(t)} aria-label="Delete assignment"><Trash2 size={13} /></button>
+                    </div>
+                  </div>
+                );
+              }}
+            />
+          )}
+        </>
+      )}
+    </Page>
+  );
+}
+
+const FONT_IMPORT = `
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap');
+`;
+
+const BASE_CSS = `
+.shell {
+  --paper: #F3F1EC;
+  --card: #FFFFFF;
+  --ink: #21201C;
+  --ink-soft: #85837A;
+  --line: #E4E1D6;
+  --accent: #2B6F6A;
+  --accent-soft: #E4F0EE;
+  --danger: #D1493B;
+  --warn: #C1852A;
+  font-family: 'Inter', sans-serif;
+  color: var(--ink);
+  background: var(--paper);
+  max-width: 400px;
+  margin: 0 auto;
+  border-radius: 28px;
+  padding: 20px 18px 90px;
+  position: relative;
+  min-height: 520px;
+  box-sizing: border-box;
+}
+.header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; }
+.brand { font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+.date { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--ink-soft); margin: 3px 0 0; text-transform: uppercase; letter-spacing: 0.04em; }
+.headerActions { display: flex; align-items: center; gap: 8px; }
+.iconBtn { width: 36px; height: 36px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--ink); }
+.iconBtn:hover { border-color: var(--accent); color: var(--accent); }
+.greetingBanner { display: flex; align-items: center; gap: 8px; background: var(--accent-soft); color: var(--accent); border-radius: 12px; padding: 10px 12px; font-size: 13px; font-weight: 500; margin-bottom: 16px; }
+.greetingClose { margin-left: auto; background: none; border: none; color: var(--accent); cursor: pointer; display: flex; flex-shrink: 0; }
+.progressWrap { margin: 0 0 18px; }
+.progressBar { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.progressFill { height: 100%; background: linear-gradient(90deg, var(--accent), #4a9d95); border-radius: 999px; transition: width 0.35s ease; }
+.progressLabel { display: block; margin-top: 6px; font-size: 11.5px; color: var(--ink-soft); font-family: 'IBM Plex Mono', monospace; }
+
+.stack { display: flex; flex-direction: column; gap: 22px; }
+.dragItem { display: flex; align-items: flex-start; gap: 4px; position: relative; transition: transform 0.18s ease; }
+.dragItemActive { transition: none; }
+.dragItemActive .catBlock, .dragItemActive .groupBlock { box-shadow: 0 10px 22px rgba(33,32,28,0.16); border-radius: 16px; }
+.dragHandle { flex-shrink: 0; width: 22px; height: 22px; margin-top: 24px; border: none; background: transparent; color: var(--ink-soft); cursor: grab; display: flex; align-items: center; justify-content: center; touch-action: none; }
+.dragHandle:active { cursor: grabbing; color: var(--ink); }
+.dragContent { flex: 1; min-width: 0; }
+.dropTargetActive { outline: 2px dashed var(--accent); outline-offset: 4px; border-radius: 16px; }
+.catBlock { display: flex; flex-direction: column; gap: 8px; }
+.groupBlock { display: flex; flex-direction: column; gap: 8px; }
+.groupHeader { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft); }
+.groupNameBtn { font: inherit; text-transform: inherit; letter-spacing: inherit; color: inherit; background: none; border: none; padding: 0; cursor: pointer; }
+.groupNameBtn:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.groupChildren { display: flex; flex-direction: column; gap: 16px; padding-left: 14px; border-left: 2px solid var(--line); }
+.catLabel { display: flex; align-items: center; gap: 7px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.catName { font-size: 13px; font-weight: 600; letter-spacing: 0.01em; }
+.catNameBtn { font-size: 13px; font-weight: 600; letter-spacing: 0.01em; background: none; border: none; padding: 0; color: var(--ink); cursor: pointer; font-family: 'Inter', sans-serif; }
+.catNameBtn:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.catCount { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-soft); margin-left: auto; }
+.cardWrap { position: relative; }
+.peek { position: absolute; left: 0; right: 0; height: 100%; border-radius: 16px; z-index: 0; }
+.peek1 { transform: translateY(10px) scale(0.96) rotate(1.4deg); opacity: 0.55; }
+.peek2 { transform: translateY(6px) scale(0.98) rotate(-1deg); opacity: 0.8; }
+.taskCard { position: relative; z-index: 1; background: var(--card); border-radius: 16px; border: 1px solid var(--line); overflow: hidden; display: flex; align-items: stretch; cursor: grab; user-select: none; touch-action: none; animation: cardEnter 0.3s ease; }
+.taskCardArmed { cursor: grabbing; touch-action: none; }
+.taskCardBar { width: 5px; flex-shrink: 0; }
+.taskCardBody { padding: 15px 14px; flex: 1; min-width: 0; }
+.taskTitleRow { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.taskTitle { font-size: 15px; font-weight: 600; margin: 0; line-height: 1.35; flex: 1; min-width: 0; }
+.swipeHintIcons { display: flex; align-items: center; gap: 6px; flex-shrink: 0; margin-top: 1px; }
+.swipeHintIconGroup { display: flex; align-items: center; gap: 1px; color: var(--ink-soft); opacity: 0.55; }
+.taskMeta { display: flex; flex-wrap: wrap; gap: 10px; max-width: 100%; }
+.noteBadge { min-width: 0; max-width: 100%; }
+.noteExcerpt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 170px; }
+.badge { font-size: 11.5px; font-family: 'IBM Plex Mono', monospace; display: inline-flex; align-items: center; }
+.dueCircle { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
+.swipeHint { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--accent); pointer-events: none; }
+.swipeHintLeft { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--ink-soft); pointer-events: none; }
+.completeOverlay, .skipOverlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 16px; z-index: 2; animation: overlayPop 0.28s cubic-bezier(.34,1.56,.64,1); gap: 4px; color: #fff; }
+.completeOverlay { background: linear-gradient(135deg, #2B6F6A, #3d8f88); }
+.skipOverlay { background: linear-gradient(135deg, #57626d, #77858f); }
+.overlayLabel { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+@keyframes overlayPop { 0% { opacity: 0; transform: scale(0.85); } 60% { opacity: 1; transform: scale(1.05); } 100% { opacity: 1; transform: scale(1); } }
+@keyframes cardEnter { 0% { opacity: 0; transform: translateY(10px) scale(0.97); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
+.caughtUp { display: flex; align-items: center; gap: 8px; padding: 14px; border-radius: 16px; border: 1px dashed; font-size: 13.5px; color: var(--ink-soft); background: var(--card); }
+.miniLink { background: none; border: none; font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 0; margin-left: auto; }
+.miniFab { width: 32px; height: 32px; border-radius: 50%; background: var(--ink); color: #fff; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-left: auto; flex-shrink: 0; box-shadow: 0 3px 8px rgba(33,32,28,0.24); }
+.miniFab:hover { filter: brightness(1.1); }
+.fabRow { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; z-index: 20; }
+.fab { width: 54px; height: 54px; border-radius: 50%; background: var(--ink); color: #fff; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 6px 18px rgba(33,32,28,0.28); }
+.fabSecondary { width: 54px; height: 54px; border-radius: 50%; background: #fff; border: 1px solid var(--line); color: var(--ink); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 6px 18px rgba(33,32,28,0.28); }
+.fabSecondary:hover { color: var(--accent); border-color: var(--accent); }
+.dragGhost { position: fixed; transform: translate(-50%, -120%); background: var(--ink); color: #fff; padding: 6px 12px; border-radius: 8px; font-size: 12.5px; font-weight: 600; pointer-events: none; z-index: 60; box-shadow: 0 6px 16px rgba(0,0,0,0.25); max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.undoBar { position: fixed; top: 18px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-size: 12.5px; font-weight: 500; padding: 8px 8px 8px 16px; border-radius: 999px; z-index: 40; display: flex; align-items: center; gap: 10px; box-shadow: 0 6px 16px rgba(33,32,28,0.24); }
+.undoBtn { background: rgba(255,255,255,0.16); border: none; color: #fff; font-weight: 600; font-size: 12px; padding: 5px 11px; border-radius: 999px; cursor: pointer; }
+.undoBtn:hover { background: rgba(255,255,255,0.26); }
+.celebrationToast { position: fixed; bottom: 104px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, var(--accent), #4a9d95); color: #fff; font-size: 12.5px; font-weight: 600; padding: 9px 16px; border-radius: 999px; z-index: 45; display: flex; align-items: center; gap: 8px; box-shadow: 0 6px 18px rgba(33,32,28,0.28); animation: overlayPop 0.32s cubic-bezier(.34,1.56,.64,1); pointer-events: none; white-space: nowrap; }
+.celebrationBackdrop { position: fixed; inset: 0; background: rgba(33,32,28,0.55); z-index: 70; display: flex; align-items: center; justify-content: center; padding: 24px; animation: fadeIn 0.2s ease; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.celebrationCard { position: relative; overflow: hidden; background: var(--card); border-radius: 24px; padding: 36px 26px 26px; max-width: 320px; width: 100%; text-align: center; box-shadow: 0 20px 50px rgba(33,32,28,0.35); animation: overlayPop 0.4s cubic-bezier(.34,1.56,.64,1); }
+.celebrationEmoji { font-size: 46px; line-height: 1; margin-bottom: 10px; }
+.celebrationTitle { font-family: 'Space Grotesk', sans-serif; font-size: 21px; font-weight: 600; margin: 0 0 8px; letter-spacing: -0.01em; }
+.celebrationSubtitle { font-size: 13.5px; color: var(--ink-soft); line-height: 1.5; margin: 0 0 20px; }
+.confettiWrap { position: absolute; inset: 0; overflow: hidden; pointer-events: none; border-radius: inherit; }
+.confettiPiece { position: absolute; top: -14px; width: 8px; height: 14px; opacity: 0.9; border-radius: 2px; animation: confettiFall 1.5s ease-in forwards; }
+@keyframes confettiFall { 0% { transform: translateY(-14px) rotate(0deg); opacity: 1; } 100% { transform: translateY(260px) rotate(420deg); opacity: 0; } }
+.emptyState { text-align: center; padding: 30px 14px; border: 1px dashed var(--line); border-radius: 16px; }
+.emptyTitle { font-weight: 600; font-size: 15px; margin: 0 0 6px; }
+.emptyBody { font-size: 13px; color: var(--ink-soft); margin: 0 0 14px; line-height: 1.5; }
+.onboard { text-align: center; padding: 50px 16px; }
+.onboardIcon { width: 44px; height: 44px; border-radius: 14px; background: var(--accent-soft, #E4F0EE); color: #2B6F6A; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; }
+.onboardTitle { font-family: 'Space Grotesk', sans-serif; font-size: 30px; font-weight: 600; margin: 0 0 12px; }
+.onboardBody { font-size: 14px; color: #85837A; line-height: 1.6; max-width: 300px; margin: 0 auto 26px; }
+.authWrap { text-align: center; padding: 34px 4px 10px; }
+.authForm { text-align: left; }
+.authTabs { display: flex; background: var(--paper, #F3F1EC); border-radius: 12px; padding: 4px; gap: 4px; margin-bottom: 22px; }
+.authTabsSecondary { margin-bottom: 18px; }
+.authTab { flex: 1; border: none; background: transparent; color: var(--ink-soft, #85837A); font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; padding: 9px 6px; border-radius: 9px; cursor: pointer; }
+.authTabActive { background: var(--card, #fff); color: var(--ink, #21201C); box-shadow: 0 2px 6px rgba(33,32,28,0.12); }
+.avatarInitial { width: 22px; height: 22px; border-radius: 50%; background: var(--accent-soft, #E4F0EE); color: var(--accent, #2B6F6A); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.avatarInitialLg { width: 38px; height: 38px; font-size: 16px; flex-shrink: 0; }
+.familyCodeChip { flex: 1; font-family: 'IBM Plex Mono', monospace; font-size: 18px; font-weight: 700; letter-spacing: 0.12em; background: var(--paper, #F3F1EC); border: 1px dashed var(--line, #E4E1D6); border-radius: 12px; padding: 12px 14px; text-align: center; color: var(--ink, #21201C); }
+.familyCodeReveal { text-align: left; padding: 4px 0; }
+.familyCodeBig { font-family: 'IBM Plex Mono', monospace; font-size: 30px; font-weight: 700; letter-spacing: 0.14em; text-align: center; background: var(--accent-soft, #E4F0EE); color: var(--accent, #2B6F6A); border-radius: 14px; padding: 18px 10px; margin: 0 0 16px; }
+.primaryBtn { background: var(--ink, #21201C); color: #fff; border: none; border-radius: 12px; padding: 12px 18px; font-size: 14px; font-weight: 600; width: 100%; cursor: pointer; margin-top: 6px; }
+.primaryBtn:disabled { opacity: 0.4; cursor: default; }
+.ghostBtn { background: transparent; border: 1px solid var(--line, #E4E1D6); color: var(--ink, #21201C); border-radius: 12px; padding: 11px 18px; font-size: 13.5px; font-weight: 600; cursor: pointer; margin-top: 10px; }
+.pageView { position: fixed; top: 0; bottom: 0; left: 0; right: 0; max-width: 400px; margin: 0 auto; background: var(--paper); z-index: 60; display: flex; flex-direction: column; animation: pageSlideIn 0.24s cubic-bezier(.2,.8,.2,1); overflow: hidden; }
+@keyframes pageSlideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.pageHeader { display: flex; align-items: center; gap: 10px; padding: 20px 18px 14px; flex-shrink: 0; border-bottom: 1px solid var(--line); background: var(--paper); }
+.pageHeaderRight { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.filterActiveBadge { position: relative; }
+.filterActiveBadge::after { content: ""; position: absolute; top: 6px; right: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); border: 1.5px solid var(--card); }
+.filterStatusRow { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; font-size: 12.5px; color: var(--ink-soft); }
+.pageTitle { font-family: 'Space Grotesk', sans-serif; font-size: 19px; font-weight: 600; margin: 0; }
+.titleEditBtn { background: none; border: none; padding: 4px; margin-left: 2px; color: var(--ink-soft); cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0; }
+.titleEditBtn:hover { color: var(--accent); background: rgba(33,32,28,0.04); }
+.pageBody { flex: 1; overflow-y: auto; padding: 16px 18px 40px; -webkit-overflow-scrolling: touch; }
+.overlay { position: fixed; inset: 0; background: rgba(33,32,28,0.4); display: flex; align-items: flex-end; justify-content: center; z-index: 70; }
+.sheet { background: var(--card, #fff); width: 100%; max-width: 400px; border-radius: 22px 22px 0 0; padding: 18px 18px 26px; max-height: 82vh; overflow-y: auto; }
+.sheetWide { max-width: 460px; }
+.sheetHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.sheetHeadLeft { display: flex; align-items: center; gap: 6px; }
+.sheetTitle { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 600; margin: 0; }
+.sheetHint { font-size: 12.5px; color: var(--ink-soft, #85837A); margin: 0 0 14px; line-height: 1.5; }
+.fieldLabel { display: block; font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft, #85837A); margin: 14px 0 6px; }
+.textInput, .select, .textArea { width: 100%; box-sizing: border-box; border: 1px solid var(--line, #E4E1D6); border-radius: 10px; padding: 10px 11px; font-size: 14px; font-family: 'Inter', sans-serif; background: #fff; color: var(--ink, #21201C); }
+.repeatAdvanced { margin-top: 10px; padding: 12px 14px; background: var(--card, #fff); border: 1px solid var(--line, #E4E1D6); border-radius: 12px; }
+.repeatIntervalRow { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink, #21201C); }
+.repeatIntervalInput { width: 56px; text-align: center; padding: 6px 4px; flex: none; }
+.repeatWeekdayBlock { margin-top: 2px; }
+.weekdayRow { display: flex; gap: 6px; }
+.weekdayChip { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line, #E4E1D6); background: var(--paper, #F3F1EC); color: var(--ink-soft, #85837A); font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: 'Inter', sans-serif; }
+.weekdayChipActive { background: var(--accent, #2B6F6A); border-color: var(--accent, #2B6F6A); color: #fff; }
+.repeatEndOption { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink, #21201C); margin-bottom: 6px; }
+.repeatEndOption:last-child { margin-bottom: 0; }
+.repeatCountInput { width: 52px; text-align: center; padding: 4px; margin: 0 2px; flex: none; }
+.repeatCountInput:disabled { opacity: 0.45; }
+.repeatPreview { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--line, #E4E1D6); font-size: 12.5px; color: var(--accent, #2B6F6A); font-weight: 600; }
+.repeatPreviewHint { color: var(--ink-soft, #85837A); font-weight: 500; }
+.textArea { min-height: 68px; resize: vertical; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.catPicker { display: flex; align-items: center; gap: 10px; }
+.catPicker .select { flex: 1; }
+.swatchRow { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+.swatchActive { border-color: var(--ink, #21201C); }
+.errorText { color: var(--danger, #D1493B); font-size: 12.5px; margin: 10px 0 0; }
+.successText { color: var(--accent, #2B6F6A); font-size: 12.5px; margin: 0; }
+.detailHead { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
+.detailTitle { font-size: 17px; font-weight: 600; margin: 0; }
+.detailTitleInput { font-size: 17px; font-weight: 600; font-family: 'Inter', sans-serif; border: none; background: transparent; color: var(--ink, #21201C); flex: 1; min-width: 0; padding: 4px 0; border-bottom: 1px solid transparent; }
+.detailTitleInput:focus { outline: none; border-bottom: 1px solid var(--accent, #2B6F6A); }
+.detailMetaRow { display: flex; gap: 12px; margin-bottom: 12px; }
+.detailNotes { font-size: 13.5px; color: var(--ink-soft, #85837A); line-height: 1.6; background: var(--paper, #F3F1EC); border-radius: 10px; padding: 12px; margin: 0 0 16px; }
+.detailActions { display: flex; flex-direction: column; gap: 10px; }
+.dangerLink { background: none; border: none; color: var(--danger, #D1493B); font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 4px 0; display: inline-flex; align-items: center; gap: 5px; }
+.deleteRow { display: flex; justify-content: flex-end; }
+.toggleList { display: flex; flex-direction: column; gap: 4px; }
+.toggleRow { display: flex; align-items: center; justify-content: space-between; padding: 11px 4px; border-bottom: 1px solid var(--line, #E4E1D6); cursor: pointer; }
+.toggleLeft { display: flex; align-items: center; gap: 9px; font-size: 14px; font-weight: 500; }
+.toggleDue { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; font-weight: 600; text-transform: none; }
+.todayGroup { padding: 6px 0; border-bottom: 1px solid var(--line, #E4E1D6); }
+.todayGroupHeader { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft, #85837A); padding: 6px 4px; }
+.todayChildren { padding-left: 16px; }
+.todayChildren .toggleRow { border-bottom: none; padding: 8px 4px; }
+.filterRow { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.retentionRow { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-soft); margin-bottom: 18px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+.retentionSelect { width: auto; flex: 0 0 auto; padding: 6px 8px; font-size: 12.5px; margin-left: auto; }
+.filterBtn { background: var(--paper, #F3F1EC); border: 1px solid var(--line, #E4E1D6); color: var(--ink, #21201C); border-radius: 999px; padding: 7px 13px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.filterBtn:hover { border-color: var(--accent, #2B6F6A); color: var(--accent, #2B6F6A); }
+.filterBtnActive { background: var(--ink, #21201C); color: #fff; border-color: var(--ink, #21201C); }
+.queueTitleBtn { background: none; border: none; text-align: left; padding: 0; cursor: pointer; font-family: 'Inter', sans-serif; color: var(--ink, #21201C); font-weight: 500; }
+.queueTitleBtn:hover { color: var(--accent, #2B6F6A); }
+.uncatSection { border-top: 1px dashed var(--line); padding-top: 16px; }
+.uncatHeader { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft); display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.uncatList { display: flex; flex-direction: column; gap: 6px; }
+.uncatRow { display: flex; align-items: center; gap: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 10px; touch-action: none; user-select: none; cursor: grab; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.rowArmed { transform: scale(1.03); box-shadow: 0 6px 16px rgba(33,32,28,0.18); background: var(--accent-soft); border-color: var(--accent); z-index: 10; position: relative; }
+.uncatTitle { font-size: 13px; font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.queueList { display: flex; flex-direction: column; gap: 4px; }
+.dragRowList { display: flex; flex-direction: column; gap: 4px; }
+.dragRow { display: flex; align-items: center; gap: 2px; transition: transform 0.18s ease; }
+.dragRowActive { transition: none; }
+.dragRowActive .queueRow { box-shadow: 0 6px 14px rgba(33,32,28,0.14); background: var(--card, #fff); border-radius: 8px; }
+.dragRowHandle { flex-shrink: 0; width: 20px; height: 32px; border: none; background: transparent; color: var(--ink-soft, #85837A); cursor: grab; display: flex; align-items: center; justify-content: center; touch-action: none; }
+.longPressRow { touch-action: none; user-select: none; cursor: grab; }
+.longPressRow:active { cursor: grabbing; }
+.dragRowHandle:active { cursor: grabbing; color: var(--ink, #21201C); }
+.dragRowContent { flex: 1; min-width: 0; }
+.queueRow { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 8px; background: var(--paper, #F3F1EC); }
+.queueRowFront { background: var(--accent-soft, #E4F0EE); }
+.queueIdx { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--ink-soft, #85837A); width: 14px; }
+.queueTitle { font-size: 13px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.queueActions { display: flex; gap: 2px; }
+.tinyIcon { width: 24px; height: 24px; border: none; background: transparent; color: var(--ink-soft, #85837A); border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.tinyIcon:disabled { opacity: 0.3; cursor: default; }
+.tinyIcon:hover:not(:disabled) { background: #fff; color: var(--ink, #21201C); }
+.newCatRow { display: flex; flex-direction: column; gap: 4px; margin-bottom: 20px; padding-bottom: 18px; border-bottom: 1px solid var(--line, #E4E1D6); }
+.backupRow { display: flex; gap: 10px; }
+.catList { display: flex; flex-direction: column; gap: 6px; }
+.catListRow { display: flex; align-items: center; gap: 9px; width: 100%; background: var(--card, #fff); border: 1px solid var(--line, #E4E1D6); border-radius: 12px; padding: 12px 12px; cursor: pointer; text-align: left; font-family: 'Inter', sans-serif; }
+.catChildList { display: flex; flex-direction: column; gap: 6px; margin: 6px 0 0 20px; padding-left: 12px; border-left: 2px solid var(--line); }
+.catChildRow { padding: 9px 10px; }
+.catListRow:hover { border-color: var(--accent, #2B6F6A); }
+.draggableTaskRow { margin-bottom: 6px; touch-action: none; user-select: none; cursor: grab; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.draggableTaskRow:active { cursor: grabbing; }
+.manageCatHead { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.themeGroup { margin-bottom: 18px; }
+.themeGroup:last-child { margin-bottom: 4px; }
+.themeGroupLabel { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft, #85837A); margin: 0 0 8px; }
+.themeList { display: flex; flex-direction: column; gap: 6px; }
+.themeRow { display: flex; align-items: center; gap: 10px; width: 100%; background: var(--card, #fff); border: 1.5px solid var(--line, #E4E1D6); border-radius: 12px; padding: 10px 12px; cursor: pointer; text-align: left; font-family: 'Inter', sans-serif; }
+.themeRow:hover { border-color: var(--ink-soft, #85837A); }
+.themeRowActive { background: var(--paper, #F3F1EC); }
+.themeSwatchPair { display: flex; width: 38px; height: 22px; border-radius: 7px; overflow: hidden; border: 1px solid rgba(33,32,28,0.1); flex-shrink: 0; }
+.themeSwatchPair span { flex: 1; }
+.themeRowName { flex: 1; font-size: 13.5px; font-weight: 500; color: var(--ink, #21201C); }
+`;
+
+ReactDOM.createRoot(document.getElementById("root")).render(<AuthGate />);
+
+</script>
+</body>
+</html>
