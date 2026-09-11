@@ -4,15 +4,21 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="default" />
-<title>Homework</title>
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Lock In" />
+<meta name="theme-color" content="#0A0B07" />
+<link rel="icon" type="image/png" href="/favicon.png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<title>Lock In</title>
 <style>
-  html, body { margin: 0; padding: 0; background: #F3F1EC; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: contain; }
+  html, body { margin: 0; padding: 0; background: #0A0B07; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: contain; }
   * { box-sizing: border-box; }
 </style>
 </head>
 <body>
-<div id="root"><div id="fallback" style="font-family:sans-serif;max-width:360px;margin:60px auto;padding:0 20px;color:#21201C;text-align:center;"><p style="font-weight:600;">Loading Homework…</p><p style="font-size:13px;color:#85837A;">If this message doesn't go away after a few seconds, this file was likely opened in a preview window instead of a full browser. Use your browser's 'Open in Safari' / 'Open in Chrome' option, or open it from a real web link instead of a file attachment.</p></div></div>
+<div id="root"><div id="fallback" style="font-family:sans-serif;max-width:360px;margin:60px auto;padding:0 20px;color:#F4F7EA;text-align:center;"><p style="font-weight:600;">Loading Lock In…</p><p style="font-size:13px;color:#98A187;">If this message doesn't go away after a few seconds, this file was likely opened in a preview window instead of a full browser. Use your browser's 'Open in Safari' / 'Open in Chrome' option, or open it from a real web link instead of a file attachment.</p></div></div>
 <script crossorigin src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script>
 <script crossorigin src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7/babel.min.js"></script>
@@ -100,9 +106,9 @@
 
 const { useState, useEffect, useLayoutEffect, useRef, useCallback } = React;
 
-function IconBase({ size = 16, color, strokeWidth = 2, style, children }) {
+function IconBase({ size = 16, color, strokeWidth = 2, fill = "none", style, children }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color || "currentColor"} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={style}>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color || "currentColor"} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={style}>
       {children}
     </svg>
   );
@@ -124,11 +130,11 @@ function Settings2(props) { return <IconBase {...props}><line x1="7" y1="4" x2="
 function SkipForward(props) { return <IconBase {...props} fill={props.color || "currentColor"} strokeWidth={0}><polygon points="5 4 15 12 5 20 5 4" /><rect x="18" y="4" width="2.5" height="16" rx="1" /></IconBase>; }
 function Zap(props) { return <IconBase {...props} fill={props.color || "currentColor"} strokeWidth={0}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></IconBase>; }
 function Sun(props) { return <IconBase {...props}><circle cx="12" cy="12" r="4" /><line x1="12" y1="2" x2="12" y2="4" /><line x1="12" y1="20" x2="12" y2="22" /><line x1="4" y1="12" x2="2" y2="12" /><line x1="22" y1="12" x2="20" y2="12" /><line x1="5" y1="5" x2="6.5" y2="6.5" /><line x1="17.5" y1="17.5" x2="19" y2="19" /><line x1="5" y1="19" x2="6.5" y2="17.5" /><line x1="17.5" y1="6.5" x2="19" y2="5" /></IconBase>; }
+function Moon(props) { return <IconBase {...props} fill={props.color || "currentColor"}><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" /></IconBase>; }
 function ClipboardList(props) { return <IconBase {...props}><rect x="8" y="2" width="8" height="4" rx="1" /><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3" /><line x1="8" y1="11" x2="16" y2="11" /><line x1="8" y1="15" x2="16" y2="15" /><line x1="8" y1="19" x2="12" y2="19" /></IconBase>; }
 function ClipboardCheck(props) { return <IconBase {...props}><rect x="8" y="2" width="8" height="4" rx="1" /><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3" /><path d="M9 14l2 2 4-4" /></IconBase>; }
 function Pencil(props) { return <IconBase {...props}><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></IconBase>; }
 function LogOut(props) { return <IconBase {...props}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></IconBase>; }
-function Palette(props) { return <IconBase {...props}><path d="M12 2a10 10 0 1 0 0 20 2.5 2.5 0 0 0 1.8-4.3c-.5-.5-.3-1.4.4-1.6a4 4 0 0 0 2.8-3.8c0-4.4-4.5-8-9-8Z" /><circle cx="7.5" cy="11.5" r="1.2" /><circle cx="10.5" cy="7.5" r="1.2" /><circle cx="15" cy="8" r="1.2" /><circle cx="16.5" cy="12.5" r="1.2" /></IconBase>; }
 
 
 const PALETTE = {
@@ -144,45 +150,64 @@ const PALETTE = {
 const PALETTE_KEYS = Object.keys(PALETTE);
 const TONE_COLOR = { danger: "var(--danger)", warn: "var(--warn)", neutral: "var(--ink-soft)" };
 
-const THEME_GROUP_ORDER = ["Classic", "School Colors", "Boho Neutral", "Happy Kid Colors", "Colorblind Friendly"];
+// Two modes only — both built around one neon accent. No more school-color
+// picker; dark/light is a personal, per-device preference (see MODE_STORAGE_KEY).
+const MODE_VARS = {
+  light: {
+    paper: "#F2F5E9", card: "#FFFFFF", ink: "#0E120A", inkSoft: "#666D5C", line: "#DEE4CC",
+    accent: "#C6FF00", accentInk: "#0B0F06", accentSoft: "#E9FFAD", accentText: "#5C7A0A",
+    danger: "#E0342A", warn: "#D89A00",
+  },
+  dark: {
+    paper: "#0A0B07", card: "#15170F", ink: "#F4F7EA", inkSoft: "#98A187", line: "#262B1D",
+    accent: "#C6FF00", accentInk: "#0B0F06", accentSoft: "#242F0A", accentText: "#C6FF00",
+    danger: "#FF5C5C", warn: "#FFC24D",
+  },
+};
 
-const THEME_PRESETS = [
-  { id: "classic", group: "Classic", name: "Classic Teal", paper: "#F3F1EC", card: "#FFFFFF", ink: "#21201C", inkSoft: "#85837A", line: "#E4E1D6", accent: "#2B6F6A", accentSoft: "#E4F0EE" },
-
-  { id: "navy-gold", group: "School Colors", name: "Navy & Gold", paper: "#F1F2F5", card: "#FFFFFF", ink: "#1E2430", inkSoft: "#767F91", line: "#DEE2EA", accent: "#1B3A6B", accentSoft: "#E6ECF6" },
-  { id: "maroon-cream", group: "School Colors", name: "Maroon & Cream", paper: "#F6F1ED", card: "#FFFFFF", ink: "#2C1A1D", inkSoft: "#8C7A79", line: "#E9DEDA", accent: "#7A1F2B", accentSoft: "#F5E5E3" },
-  { id: "forest-gold", group: "School Colors", name: "Forest Green & Gold", paper: "#F1F2EC", card: "#FFFFFF", ink: "#1D2A1E", inkSoft: "#7B8577", line: "#E1E6DA", accent: "#1E5631", accentSoft: "#E4EFE3" },
-  { id: "crimson-black", group: "School Colors", name: "Crimson & Black", paper: "#F2F1F1", card: "#FFFFFF", ink: "#211D1E", inkSoft: "#83797A", line: "#E4E0E0", accent: "#A71930", accentSoft: "#F2E1E4" },
-  { id: "royal-orange", group: "School Colors", name: "Royal Blue & Orange", paper: "#F1F3F6", card: "#FFFFFF", ink: "#1B2430", inkSoft: "#7A8393", line: "#E1E6EC", accent: "#1857A4", accentSoft: "#E5EEF9" },
-  { id: "purple-gold", group: "School Colors", name: "Purple & Gold", paper: "#F3F1F5", card: "#FFFFFF", ink: "#251C2C", inkSoft: "#877E8E", line: "#E7E1EB", accent: "#5B2A86", accentSoft: "#EEE5F5" },
-
-  { id: "terracotta-sand", group: "Boho Neutral", name: "Terracotta & Sand", paper: "#F5F0E8", card: "#FFFDF9", ink: "#3B332C", inkSoft: "#8A7F72", line: "#E8DFD2", accent: "#B4674E", accentSoft: "#F3E7DE" },
-  { id: "sage-cream", group: "Boho Neutral", name: "Sage & Cream", paper: "#F5F3EA", card: "#FFFEFA", ink: "#333229", inkSoft: "#847F6F", line: "#E5E3D5", accent: "#6B7F5E", accentSoft: "#E9EFE2" },
-  { id: "clay-ivory", group: "Boho Neutral", name: "Clay & Ivory", paper: "#F6F1EA", card: "#FFFCF7", ink: "#3A2E27", inkSoft: "#8D8174", line: "#EAE0D3", accent: "#A6673B", accentSoft: "#F2E5D6" },
-
-  { id: "bubblegum", group: "Happy Kid Colors", name: "Bubblegum Pop", paper: "#FFF6FA", card: "#FFFFFF", ink: "#33232A", inkSoft: "#8C7A83", line: "#F5DFE9", accent: "#E8558D", accentSoft: "#FCE6EF" },
-  { id: "sherbet", group: "Happy Kid Colors", name: "Sunshine Sherbet", paper: "#FFF8EE", card: "#FFFFFF", ink: "#332A1C", inkSoft: "#8C8071", line: "#F5E7D2", accent: "#F2872E", accentSoft: "#FDEBD9" },
-  { id: "grape-fizz", group: "Happy Kid Colors", name: "Grape Fizz", paper: "#F8F3FF", card: "#FFFFFF", ink: "#2B2233", inkSoft: "#867B93", line: "#E9E0F5", accent: "#8B4FD6", accentSoft: "#EFE3FB" },
-
-  { id: "cb-blue-orange", group: "Colorblind Friendly", name: "Blue & Orange", paper: "#F2F4F6", card: "#FFFFFF", ink: "#1E2126", inkSoft: "#7B828C", line: "#E1E5EA", accent: "#0072B2", accentSoft: "#DCEAF5" },
-  { id: "cb-sky-amber", group: "Colorblind Friendly", name: "Sky & Amber", paper: "#F2F5F6", card: "#FFFFFF", ink: "#1E2226", inkSoft: "#7C838C", line: "#E1E6EA", accent: "#0091C2", accentSoft: "#DFF0F8" },
-  { id: "cb-teal-vermillion", group: "Colorblind Friendly", name: "Bluish Green & Vermillion", paper: "#F1F5F3", card: "#FFFFFF", ink: "#1D2420", inkSoft: "#79847E", line: "#DFE7E2", accent: "#009E73", accentSoft: "#DBF0E8" },
-];
-
-function getTheme(themeId) {
-  return THEME_PRESETS.find((t) => t.id === themeId) || THEME_PRESETS[0];
+function modeToCssVars(mode) {
+  const m = MODE_VARS[mode] || MODE_VARS.dark;
+  return {
+    "--paper": m.paper,
+    "--card": m.card,
+    "--ink": m.ink,
+    "--ink-soft": m.inkSoft,
+    "--line": m.line,
+    "--accent": m.accent,
+    "--accent-ink": m.accentInk,
+    "--accent-soft": m.accentSoft,
+    "--accent-text": m.accentText,
+    "--danger": m.danger,
+    "--warn": m.warn,
+  };
 }
 
-function themeToCssVars(t) {
-  return {
-    "--paper": t.paper,
-    "--card": t.card,
-    "--ink": t.ink,
-    "--ink-soft": t.inkSoft,
-    "--line": t.line,
-    "--accent": t.accent,
-    "--accent-soft": t.accentSoft,
-  };
+const MODE_STORAGE_KEY = "lockin:mode";
+
+function getInitialMode() {
+  try {
+    const saved = localStorage.getItem(MODE_STORAGE_KEY);
+    if (saved === "light" || saved === "dark") return saved;
+  } catch {
+    // localStorage unavailable — fall through to system preference
+  }
+  if (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) return "light";
+  return "dark";
+}
+
+// The crosshair mark — used as the background watermark, and matches the
+// favicon / home-screen icon.
+function Crosshair(props) {
+  return (
+    <IconBase {...props}>
+      <circle cx="12" cy="12" r="6.5" />
+      <line x1="12" y1="0.5" x2="12" y2="6" />
+      <line x1="12" y1="18" x2="12" y2="23.5" />
+      <line x1="0.5" y1="12" x2="6" y2="12" />
+      <line x1="18" y1="12" x2="23.5" y2="12" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
+    </IconBase>
+  );
 }
 
 const DAY_CODES = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
@@ -327,23 +352,28 @@ function playCelebrate() {
 }
 
 const TASK_CELEBRATIONS = [
-  "Nice work! 🎉",
-  "Assignment done! ✨",
-  "Boom — knocked out! 💪",
-  "One less thing to worry about.",
-  "Crushed it! 🙌",
-  "That's progress!",
-  "You're on a roll! 🔥",
-  "Nailed it! 🎯",
-  "Great job! 👏",
+  "W. 🎯",
+  "Secured. ✅",
+  "That's a dub.",
+  "Say less — done. 🔒",
+  "Locked in. 🔥",
+  "No cap, that's clean work.",
+  "Certified W.",
+  "You ate that. 🍽️",
+  "Big W energy.",
+  "Bag secured. 💰",
+  "That's tough. 💪",
+  "On to the next. 🎯",
 ];
 
 const SUBJECT_CELEBRATIONS = [
-  (name) => `${name} is all caught up! 🎉`,
-  (name) => `Nothing left in ${name}! 🏆`,
-  (name) => `You cleared every ${name} assignment! 🥳`,
-  (name) => `${name} — fully done! ⭐`,
-  (name) => `${name} is officially wrapped up! 🙌`,
+  (name) => `${name}: FULLY LOCKED IN. 🔒`,
+  (name) => `${name} is a wrap. Certified W.`,
+  (name) => `You just ran ${name}. No cap. 🏆`,
+  (name) => `${name}: cleared. That's a dub.`,
+  (name) => `${name} didn't stand a chance. 🔥`,
+  (name) => `${name} — done. You're built different.`,
+  (name) => `${name} secured. Big W energy. 💰`,
 ];
 
 const CONFETTI_COLORS = PALETTE_KEYS.map((k) => PALETTE[k].solid);
@@ -430,7 +460,6 @@ function seedState() {
     completedLog: [],
     lastSeenDate: null,
     completedRetentionDays: 60,
-    themeId: "classic",
   };
 }
 
@@ -496,7 +525,7 @@ function AuthGate() {
 
   if (status === "checking") {
     return (
-      <Shell>
+      <Shell mode="dark">
         <style>{FONT_IMPORT}</style>
         <div style={{ padding: "3rem 1rem", textAlign: "center", color: "var(--ink-soft)" }}>Loading…</div>
       </Shell>
@@ -513,15 +542,12 @@ function AuthGate() {
 function AuthScreen({ onAuthed }) {
   const [tab, setTab] = useState("login");
   return (
-    <Shell>
+    <Shell mode="dark">
       <style>{FONT_IMPORT}</style>
       <div className="authWrap">
-        <div className="onboardIcon" style={{ margin: "6px auto 14px" }}>
-          <Sparkles size={22} />
-        </div>
-        <h1 className="onboardTitle" style={{ fontSize: 27, marginBottom: 6 }}>Homework</h1>
+        <img src="/logo-full.jpg" alt="Lock In — Do the work. Get the W." className="authLogo" />
         <p className="onboardBody" style={{ marginBottom: 22 }}>
-          One shared account for the whole family — parents and students log in separately and see the same list.
+          One shared account for the whole family — log in separately, see the same list.
         </p>
         <div className="authTabs">
           <button className={"authTab" + (tab === "login" ? " authTabActive" : "")} onClick={() => setTab("login")}>Log in</button>
@@ -617,7 +643,7 @@ function SignupForm({ onAuthed }) {
         <p className="emptyBody" style={{ padding: 0 }}>
           Share this with your student (or co-parent) — when they sign up, they'll choose "Join a family" and enter this code to land in the same shared list.
         </p>
-        <button className="primaryBtn" onClick={() => window.location.reload()}>Continue to Homework</button>
+        <button className="primaryBtn" onClick={() => window.location.reload()}>Continue to Lock In</button>
       </div>
     );
   }
@@ -676,40 +702,6 @@ function SignupForm({ onAuthed }) {
   );
 }
 
-function ThemeModal({ currentThemeId, onSelect, onClose }) {
-  return (
-    <Sheet title="Color scheme" onClose={onClose}>
-      <p className="sheetHint">Pick a look for the whole family — everyone signed into this family sees the same colors.</p>
-      {THEME_GROUP_ORDER.map((group) => (
-        <div key={group} className="themeGroup">
-          <p className="themeGroupLabel">{group}</p>
-          <div className="themeList">
-            {THEME_PRESETS.filter((t) => t.group === group).map((t) => {
-              const active = t.id === currentThemeId;
-              return (
-                <button
-                  key={t.id}
-                  className={"themeRow" + (active ? " themeRowActive" : "")}
-                  onClick={() => onSelect(t.id)}
-                  style={active ? { borderColor: t.accent } : undefined}
-                >
-                  <span className="themeSwatchPair">
-                    <span style={{ background: t.accent }} />
-                    <span style={{ background: t.accentSoft }} />
-                    <span style={{ background: t.paper }} />
-                  </span>
-                  <span className="themeRowName">{t.name}</span>
-                  {active && <Check size={16} color={t.accent} />}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-    </Sheet>
-  );
-}
-
 function AccountModal({ currentUser, onClose, onLogout }) {
   const [copied, setCopied] = useState(false);
 
@@ -761,6 +753,7 @@ function TodayApp({ currentUser, onLogout }) {
   const [pendingDragId, setPendingDragId] = useState(null);
   const [draggingId, setDraggingId] = useState(null);
   const [allTasksHidden, setAllTasksHidden] = useState(() => new Set());
+  const [mode, setMode] = useState(getInitialMode);
   const [, forceDragTick] = useState(0);
   const saveTimer = useRef(null);
   const undoTimer = useRef(null);
@@ -788,10 +781,18 @@ function TodayApp({ currentUser, onLogout }) {
   }, [scheduleSave]);
 
   const loadExample = () => persist(seedState());
-  const startEmpty = () => persist({ categories: [], tasks: {}, uncategorized: [], completedLog: [], lastSeenDate: null, completedRetentionDays: 60, themeId: "classic" });
+  const startEmpty = () => persist({ categories: [], tasks: {}, uncategorized: [], completedLog: [], lastSeenDate: null, completedRetentionDays: 60 });
 
-  const setTheme = (themeId) => {
-    persist({ ...state, themeId });
+  const toggleMode = () => {
+    setMode((prev) => {
+      const next = prev === "dark" ? "light" : "dark";
+      try {
+        localStorage.setItem(MODE_STORAGE_KEY, next);
+      } catch {
+        // localStorage unavailable — mode just won't persist across visits
+      }
+      return next;
+    });
   };
 
   const triggerCelebration = (type, subjectName) => {
@@ -1180,7 +1181,6 @@ function TodayApp({ currentUser, onLogout }) {
           raw.uncategorized = raw.uncategorized || [];
           raw.completedLog = raw.completedLog || [];
           raw.completedRetentionDays = raw.completedRetentionDays !== undefined ? raw.completedRetentionDays : 60;
-          raw.themeId = raw.themeId || "classic";
           if (raw.tasks) {
             Object.values(raw.tasks).forEach((t) => { t.repeat = migrateRepeat(t.repeat); });
           }
@@ -1375,19 +1375,18 @@ function TodayApp({ currentUser, onLogout }) {
   }, [draggingId]);
 
   if (!loaded) {
-    return <Shell><div style={{ padding: "3rem 1rem", textAlign: "center", color: "var(--ink-soft)" }}>Loading…</div></Shell>;
+    return <Shell mode={mode}><div style={{ padding: "3rem 1rem", textAlign: "center", color: "var(--ink-soft)" }}>Loading…</div></Shell>;
   }
 
   if (!state) {
     return (
-      <Shell>
+      <Shell mode={mode}>
         <OnboardScreen onExample={loadExample} onEmpty={startEmpty} />
       </Shell>
     );
   }
 
   const entries = buildTodayEntries(state.categories);
-  const currentTheme = getTheme(state.themeId);
 
   const completedToday = state.completedLog.filter((e) => new Date(e.completedAt).toDateString() === new Date().toDateString()).length;
   const remainingActive = entries.reduce((sum, e) => {
@@ -1406,14 +1405,15 @@ function TodayApp({ currentUser, onLogout }) {
     : null;
 
   return (
-    <Shell theme={currentTheme}>
+    <Shell mode={mode}>
       <style>{FONT_IMPORT}</style>
       <Header
         onSettings={() => setModal({ type: "today" })}
         onManage={() => setModal({ type: "manage" })}
-        onOpenTheme={() => setModal({ type: "theme" })}
         onOpenAccount={() => setModal({ type: "account" })}
         currentUser={currentUser}
+        mode={mode}
+        onToggleMode={toggleMode}
       />
 
       {pendingUndo && (
@@ -1704,44 +1704,53 @@ function TodayApp({ currentUser, onLogout }) {
       {modal?.type === "account" && (
         <AccountModal currentUser={currentUser} onClose={() => setModal(null)} onLogout={onLogout} />
       )}
-
-      {modal?.type === "theme" && (
-        <ThemeModal
-          currentThemeId={state.themeId || "classic"}
-          onSelect={(themeId) => setTheme(themeId)}
-          onClose={() => setModal(null)}
-        />
-      )}
     </Shell>
   );
 }
 
-function Shell({ children, theme }) {
+function Shell({ children, mode }) {
   return (
-    <div className="shell" style={theme ? themeToCssVars(theme) : undefined}>
+    <div className="shell" style={mode ? modeToCssVars(mode) : undefined}>
       <style>{BASE_CSS}</style>
-      {children}
+      <img
+        src="/icon-mark.png"
+        alt=""
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          top: "-150px",
+          right: "-200px",
+          width: "620px",
+          height: "620px",
+          opacity: 0.1,
+          transform: "rotate(-8deg)",
+          zIndex: 0,
+          pointerEvents: "none",
+        }}
+      />
+      <div className="shellContent">{children}</div>
     </div>
   );
 }
 
-function Header({ onSettings, onManage, onOpenTheme, onOpenAccount, currentUser }) {
+function Header({ onSettings, onManage, onOpenAccount, currentUser, mode, onToggleMode }) {
   const dateLabel = new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
   return (
     <div className="header">
       <div>
-        <h1 className="brand">Homework</h1>
+        <h1 className="brand">LOCK IN</h1>
+        <p className="brandTagline">Do the work. Get the W.</p>
         <p className="date">{dateLabel}</p>
       </div>
       <div className="headerActions">
         <button className="iconBtn" onClick={onManage} aria-label="Manage class subjects and assignments">
           <Layers size={19} />
         </button>
+        <button className="iconBtn" onClick={onToggleMode} aria-label={mode === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
+          {mode === "dark" ? <Sun size={19} /> : <Moon size={19} />}
+        </button>
         <button className="iconBtn" onClick={onSettings} aria-label="Choose today's class subjects">
           <Settings2 size={19} />
-        </button>
-        <button className="iconBtn" onClick={onOpenTheme} aria-label="Color scheme">
-          <Palette size={19} />
         </button>
         {currentUser && (
           <button className="iconBtn" onClick={onOpenAccount} aria-label="Account">
@@ -1758,7 +1767,7 @@ function OnboardScreen({ onExample, onEmpty }) {
     <div className="onboard">
       <style>{FONT_IMPORT}</style>
       <div className="onboardIcon"><Sparkles size={22} /></div>
-      <h1 className="onboardTitle">Homework</h1>
+      <h1 className="onboardTitle">LOCK IN</h1>
       <p className="onboardBody">
         One assignment at a time, per class subject. Finish it, swipe it off, and the next one takes its place.
         Nothing else is waiting on screen to overwhelm you.
@@ -3449,15 +3458,17 @@ const FONT_IMPORT = `
 
 const BASE_CSS = `
 .shell {
-  --paper: #F3F1EC;
-  --card: #FFFFFF;
-  --ink: #21201C;
-  --ink-soft: #85837A;
-  --line: #E4E1D6;
-  --accent: #2B6F6A;
-  --accent-soft: #E4F0EE;
-  --danger: #D1493B;
-  --warn: #C1852A;
+  --paper: #0A0B07;
+  --card: #15170F;
+  --ink: #F4F7EA;
+  --ink-soft: #98A187;
+  --line: #262B1D;
+  --accent: #C6FF00;
+  --accent-ink: #0B0F06;
+  --accent-soft: #242F0A;
+  --accent-text: #C6FF00;
+  --danger: #FF5C5C;
+  --warn: #FFC24D;
   font-family: 'Inter', sans-serif;
   color: var(--ink);
   background: var(--paper);
@@ -3468,15 +3479,18 @@ const BASE_CSS = `
   position: relative;
   min-height: 520px;
   box-sizing: border-box;
+  overflow: hidden;
 }
+.shellContent { position: relative; z-index: 1; }
 .header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; }
-.brand { font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+.brand { font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 700; margin: 0; letter-spacing: 0.02em; color: var(--accent-text); }
+.brandTagline { font-family: 'Inter', sans-serif; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); margin: 2px 0 0; }
 .date { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--ink-soft); margin: 3px 0 0; text-transform: uppercase; letter-spacing: 0.04em; }
 .headerActions { display: flex; align-items: center; gap: 8px; }
 .iconBtn { width: 36px; height: 36px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--ink); }
-.iconBtn:hover { border-color: var(--accent); color: var(--accent); }
-.greetingBanner { display: flex; align-items: center; gap: 8px; background: var(--accent-soft); color: var(--accent); border-radius: 12px; padding: 10px 12px; font-size: 13px; font-weight: 500; margin-bottom: 16px; }
-.greetingClose { margin-left: auto; background: none; border: none; color: var(--accent); cursor: pointer; display: flex; flex-shrink: 0; }
+.iconBtn:hover { border-color: var(--accent-text); color: var(--accent-text); }
+.greetingBanner { display: flex; align-items: center; gap: 8px; background: var(--accent-soft); color: var(--accent-text); border-radius: 12px; padding: 10px 12px; font-size: 13px; font-weight: 500; margin-bottom: 16px; }
+.greetingClose { margin-left: auto; background: none; border: none; color: var(--accent-text); cursor: pointer; display: flex; flex-shrink: 0; }
 .progressWrap { margin: 0 0 18px; }
 .progressBar { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
 .progressFill { height: 100%; background: linear-gradient(90deg, var(--accent), #4a9d95); border-radius: 999px; transition: width 0.35s ease; }
@@ -3494,13 +3508,13 @@ const BASE_CSS = `
 .groupBlock { display: flex; flex-direction: column; gap: 8px; }
 .groupHeader { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft); }
 .groupNameBtn { font: inherit; text-transform: inherit; letter-spacing: inherit; color: inherit; background: none; border: none; padding: 0; cursor: pointer; }
-.groupNameBtn:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.groupNameBtn:hover { color: var(--accent-text); text-decoration: underline; text-underline-offset: 2px; }
 .groupChildren { display: flex; flex-direction: column; gap: 16px; padding-left: 14px; border-left: 2px solid var(--line); }
 .catLabel { display: flex; align-items: center; gap: 7px; }
 .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 .catName { font-size: 13px; font-weight: 600; letter-spacing: 0.01em; }
 .catNameBtn { font-size: 13px; font-weight: 600; letter-spacing: 0.01em; background: none; border: none; padding: 0; color: var(--ink); cursor: pointer; font-family: 'Inter', sans-serif; }
-.catNameBtn:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+.catNameBtn:hover { color: var(--accent-text); text-decoration: underline; text-underline-offset: 2px; }
 .catCount { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-soft); margin-left: auto; }
 .cardWrap { position: relative; }
 .peek { position: absolute; left: 0; right: 0; height: 100%; border-radius: 16px; z-index: 0; }
@@ -3519,27 +3533,27 @@ const BASE_CSS = `
 .noteExcerpt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 170px; }
 .badge { font-size: 11.5px; font-family: 'IBM Plex Mono', monospace; display: inline-flex; align-items: center; }
 .dueCircle { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
-.swipeHint { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--accent); pointer-events: none; }
+.swipeHint { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--accent-text); pointer-events: none; }
 .swipeHintLeft { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--ink-soft); pointer-events: none; }
-.completeOverlay, .skipOverlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 16px; z-index: 2; animation: overlayPop 0.28s cubic-bezier(.34,1.56,.64,1); gap: 4px; color: #fff; }
-.completeOverlay { background: linear-gradient(135deg, #2B6F6A, #3d8f88); }
-.skipOverlay { background: linear-gradient(135deg, #57626d, #77858f); }
+.completeOverlay, .skipOverlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 16px; z-index: 2; animation: overlayPop 0.28s cubic-bezier(.34,1.56,.64,1); gap: 4px; }
+.completeOverlay { background: linear-gradient(135deg, #C6FF00, #9FE000); color: #0B0F06; }
+.skipOverlay { background: linear-gradient(135deg, #2A2E22, #3D4330); color: #fff; }
 .overlayLabel { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
 @keyframes overlayPop { 0% { opacity: 0; transform: scale(0.85); } 60% { opacity: 1; transform: scale(1.05); } 100% { opacity: 1; transform: scale(1); } }
 @keyframes cardEnter { 0% { opacity: 0; transform: translateY(10px) scale(0.97); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
 .caughtUp { display: flex; align-items: center; gap: 8px; padding: 14px; border-radius: 16px; border: 1px dashed; font-size: 13.5px; color: var(--ink-soft); background: var(--card); }
 .miniLink { background: none; border: none; font-size: 12.5px; font-weight: 600; cursor: pointer; padding: 0; margin-left: auto; }
-.miniFab { width: 32px; height: 32px; border-radius: 50%; background: var(--ink); color: #fff; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-left: auto; flex-shrink: 0; box-shadow: 0 3px 8px rgba(33,32,28,0.24); }
-.miniFab:hover { filter: brightness(1.1); }
+.miniFab { width: 32px; height: 32px; border-radius: 50%; background: #15170F; color: #fff; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; margin-left: auto; flex-shrink: 0; box-shadow: 0 3px 8px rgba(0,0,0,0.35); }
+.miniFab:hover { filter: brightness(1.3); }
 .fabRow { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; z-index: 20; }
-.fab { width: 54px; height: 54px; border-radius: 50%; background: var(--ink); color: #fff; border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 6px 18px rgba(33,32,28,0.28); }
-.fabSecondary { width: 54px; height: 54px; border-radius: 50%; background: #fff; border: 1px solid var(--line); color: var(--ink); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 6px 18px rgba(33,32,28,0.28); }
-.fabSecondary:hover { color: var(--accent); border-color: var(--accent); }
-.dragGhost { position: fixed; transform: translate(-50%, -120%); background: var(--ink); color: #fff; padding: 6px 12px; border-radius: 8px; font-size: 12.5px; font-weight: 600; pointer-events: none; z-index: 60; box-shadow: 0 6px 16px rgba(0,0,0,0.25); max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.undoBar { position: fixed; top: 18px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; font-size: 12.5px; font-weight: 500; padding: 8px 8px 8px 16px; border-radius: 999px; z-index: 40; display: flex; align-items: center; gap: 10px; box-shadow: 0 6px 16px rgba(33,32,28,0.24); }
+.fab { width: 54px; height: 54px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 0 0 1px rgba(198,255,0,0.35), 0 6px 22px rgba(198,255,0,0.35); }
+.fabSecondary { width: 54px; height: 54px; border-radius: 50%; background: var(--card); border: 1px solid var(--line); color: var(--ink); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 6px 18px rgba(33,32,28,0.28); }
+.fabSecondary:hover { color: var(--accent-text); border-color: var(--accent-text); }
+.dragGhost { position: fixed; transform: translate(-50%, -120%); background: #15170F; color: #fff; padding: 6px 12px; border-radius: 8px; font-size: 12.5px; font-weight: 600; pointer-events: none; z-index: 60; box-shadow: 0 6px 16px rgba(0,0,0,0.4); max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.undoBar { position: fixed; top: 18px; left: 50%; transform: translateX(-50%); background: #15170F; color: #fff; font-size: 12.5px; font-weight: 500; padding: 8px 8px 8px 16px; border-radius: 999px; z-index: 40; display: flex; align-items: center; gap: 10px; box-shadow: 0 6px 16px rgba(0,0,0,0.4); }
 .undoBtn { background: rgba(255,255,255,0.16); border: none; color: #fff; font-weight: 600; font-size: 12px; padding: 5px 11px; border-radius: 999px; cursor: pointer; }
 .undoBtn:hover { background: rgba(255,255,255,0.26); }
-.celebrationToast { position: fixed; bottom: 104px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, var(--accent), #4a9d95); color: #fff; font-size: 12.5px; font-weight: 600; padding: 9px 16px; border-radius: 999px; z-index: 45; display: flex; align-items: center; gap: 8px; box-shadow: 0 6px 18px rgba(33,32,28,0.28); animation: overlayPop 0.32s cubic-bezier(.34,1.56,.64,1); pointer-events: none; white-space: nowrap; }
+.celebrationToast { position: fixed; bottom: 104px; left: 50%; transform: translateX(-50%); background: var(--accent); color: var(--accent-ink); font-size: 12.5px; font-weight: 700; padding: 9px 16px; border-radius: 999px; z-index: 45; display: flex; align-items: center; gap: 8px; box-shadow: 0 0 0 1px rgba(198,255,0,0.3), 0 6px 18px rgba(198,255,0,0.3); animation: overlayPop 0.32s cubic-bezier(.34,1.56,.64,1); pointer-events: none; white-space: nowrap; }
 .celebrationBackdrop { position: fixed; inset: 0; background: rgba(33,32,28,0.55); z-index: 70; display: flex; align-items: center; justify-content: center; padding: 24px; animation: fadeIn 0.2s ease; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .celebrationCard { position: relative; overflow: hidden; background: var(--card); border-radius: 24px; padding: 36px 26px 26px; max-width: 320px; width: 100%; text-align: center; box-shadow: 0 20px 50px rgba(33,32,28,0.35); animation: overlayPop 0.4s cubic-bezier(.34,1.56,.64,1); }
@@ -3553,10 +3567,11 @@ const BASE_CSS = `
 .emptyTitle { font-weight: 600; font-size: 15px; margin: 0 0 6px; }
 .emptyBody { font-size: 13px; color: var(--ink-soft); margin: 0 0 14px; line-height: 1.5; }
 .onboard { text-align: center; padding: 50px 16px; }
-.onboardIcon { width: 44px; height: 44px; border-radius: 14px; background: var(--accent-soft, #E4F0EE); color: #2B6F6A; display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; }
+.onboardIcon { width: 44px; height: 44px; border-radius: 14px; background: var(--accent-soft); color: var(--accent-text); display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; }
 .onboardTitle { font-family: 'Space Grotesk', sans-serif; font-size: 30px; font-weight: 600; margin: 0 0 12px; }
-.onboardBody { font-size: 14px; color: #85837A; line-height: 1.6; max-width: 300px; margin: 0 auto 26px; }
+.onboardBody { font-size: 14px; color: var(--ink-soft); line-height: 1.6; max-width: 300px; margin: 0 auto 26px; }
 .authWrap { text-align: center; padding: 34px 4px 10px; }
+.authLogo { width: 100%; max-width: 300px; height: auto; margin: 0 auto 18px; display: block; }
 .authForm { text-align: left; }
 .authTabs { display: flex; background: var(--paper, #F3F1EC); border-radius: 12px; padding: 4px; gap: 4px; margin-bottom: 22px; }
 .authTabsSecondary { margin-bottom: 18px; }
@@ -3567,8 +3582,8 @@ const BASE_CSS = `
 .familyCodeChip { flex: 1; font-family: 'IBM Plex Mono', monospace; font-size: 18px; font-weight: 700; letter-spacing: 0.12em; background: var(--paper, #F3F1EC); border: 1px dashed var(--line, #E4E1D6); border-radius: 12px; padding: 12px 14px; text-align: center; color: var(--ink, #21201C); }
 .familyCodeReveal { text-align: left; padding: 4px 0; }
 .familyCodeBig { font-family: 'IBM Plex Mono', monospace; font-size: 30px; font-weight: 700; letter-spacing: 0.14em; text-align: center; background: var(--accent-soft, #E4F0EE); color: var(--accent, #2B6F6A); border-radius: 14px; padding: 18px 10px; margin: 0 0 16px; }
-.primaryBtn { background: var(--ink, #21201C); color: #fff; border: none; border-radius: 12px; padding: 12px 18px; font-size: 14px; font-weight: 600; width: 100%; cursor: pointer; margin-top: 6px; }
-.primaryBtn:disabled { opacity: 0.4; cursor: default; }
+.primaryBtn { background: var(--accent); color: var(--accent-ink); border: none; border-radius: 12px; padding: 12px 18px; font-size: 14px; font-weight: 700; width: 100%; cursor: pointer; margin-top: 6px; letter-spacing: 0.01em; }
+.primaryBtn:disabled { opacity: 0.6; cursor: default; }
 .ghostBtn { background: transparent; border: 1px solid var(--line, #E4E1D6); color: var(--ink, #21201C); border-radius: 12px; padding: 11px 18px; font-size: 13.5px; font-weight: 600; cursor: pointer; margin-top: 10px; }
 .pageView { position: fixed; top: 0; bottom: 0; left: 0; right: 0; max-width: 400px; margin: 0 auto; background: var(--paper); z-index: 60; display: flex; flex-direction: column; animation: pageSlideIn 0.24s cubic-bezier(.2,.8,.2,1); overflow: hidden; }
 @keyframes pageSlideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
@@ -3579,7 +3594,7 @@ const BASE_CSS = `
 .filterStatusRow { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; font-size: 12.5px; color: var(--ink-soft); }
 .pageTitle { font-family: 'Space Grotesk', sans-serif; font-size: 19px; font-weight: 600; margin: 0; }
 .titleEditBtn { background: none; border: none; padding: 4px; margin-left: 2px; color: var(--ink-soft); cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 8px; flex-shrink: 0; }
-.titleEditBtn:hover { color: var(--accent); background: rgba(33,32,28,0.04); }
+.titleEditBtn:hover { color: var(--accent-text); background: rgba(198,255,0,0.1); }
 .pageBody { flex: 1; overflow-y: auto; padding: 16px 18px 40px; -webkit-overflow-scrolling: touch; }
 .overlay { position: fixed; inset: 0; background: rgba(33,32,28,0.4); display: flex; align-items: flex-end; justify-content: center; z-index: 70; }
 .sheet { background: var(--card, #fff); width: 100%; max-width: 400px; border-radius: 22px 22px 0 0; padding: 18px 18px 26px; max-height: 82vh; overflow-y: auto; }
@@ -3589,14 +3604,14 @@ const BASE_CSS = `
 .sheetTitle { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 600; margin: 0; }
 .sheetHint { font-size: 12.5px; color: var(--ink-soft, #85837A); margin: 0 0 14px; line-height: 1.5; }
 .fieldLabel { display: block; font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft, #85837A); margin: 14px 0 6px; }
-.textInput, .select, .textArea { width: 100%; box-sizing: border-box; border: 1px solid var(--line, #E4E1D6); border-radius: 10px; padding: 10px 11px; font-size: 14px; font-family: 'Inter', sans-serif; background: #fff; color: var(--ink, #21201C); }
+.textInput, .select, .textArea { width: 100%; box-sizing: border-box; border: 1px solid var(--line, #E4E1D6); border-radius: 10px; padding: 10px 11px; font-size: 14px; font-family: 'Inter', sans-serif; background: var(--card); color: var(--ink, #21201C); }
 .repeatAdvanced { margin-top: 10px; padding: 12px 14px; background: var(--card, #fff); border: 1px solid var(--line, #E4E1D6); border-radius: 12px; }
 .repeatIntervalRow { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink, #21201C); }
 .repeatIntervalInput { width: 56px; text-align: center; padding: 6px 4px; flex: none; }
 .repeatWeekdayBlock { margin-top: 2px; }
 .weekdayRow { display: flex; gap: 6px; }
 .weekdayChip { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line, #E4E1D6); background: var(--paper, #F3F1EC); color: var(--ink-soft, #85837A); font-size: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: 'Inter', sans-serif; }
-.weekdayChipActive { background: var(--accent, #2B6F6A); border-color: var(--accent, #2B6F6A); color: #fff; }
+.weekdayChipActive { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
 .repeatEndOption { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink, #21201C); margin-bottom: 6px; }
 .repeatEndOption:last-child { margin-bottom: 0; }
 .repeatCountInput { width: 52px; text-align: center; padding: 4px; margin: 0 2px; flex: none; }
@@ -3634,14 +3649,14 @@ const BASE_CSS = `
 .retentionSelect { width: auto; flex: 0 0 auto; padding: 6px 8px; font-size: 12.5px; margin-left: auto; }
 .filterBtn { background: var(--paper, #F3F1EC); border: 1px solid var(--line, #E4E1D6); color: var(--ink, #21201C); border-radius: 999px; padding: 7px 13px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
 .filterBtn:hover { border-color: var(--accent, #2B6F6A); color: var(--accent, #2B6F6A); }
-.filterBtnActive { background: var(--ink, #21201C); color: #fff; border-color: var(--ink, #21201C); }
+.filterBtnActive { background: var(--accent); color: var(--accent-ink); border-color: var(--accent-text); font-weight: 700; }
 .queueTitleBtn { background: none; border: none; text-align: left; padding: 0; cursor: pointer; font-family: 'Inter', sans-serif; color: var(--ink, #21201C); font-weight: 500; }
 .queueTitleBtn:hover { color: var(--accent, #2B6F6A); }
 .uncatSection { border-top: 1px dashed var(--line); padding-top: 16px; }
 .uncatHeader { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft); display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
 .uncatList { display: flex; flex-direction: column; gap: 6px; }
 .uncatRow { display: flex; align-items: center; gap: 8px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 10px; touch-action: none; user-select: none; cursor: grab; transition: transform 0.15s ease, box-shadow 0.15s ease; }
-.rowArmed { transform: scale(1.03); box-shadow: 0 6px 16px rgba(33,32,28,0.18); background: var(--accent-soft); border-color: var(--accent); z-index: 10; position: relative; }
+.rowArmed { transform: scale(1.03); box-shadow: 0 6px 16px rgba(33,32,28,0.18); background: var(--accent-soft); border-color: var(--accent-text); z-index: 10; position: relative; }
 .uncatTitle { font-size: 13px; font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .queueList { display: flex; flex-direction: column; gap: 4px; }
 .dragRowList { display: flex; flex-direction: column; gap: 4px; }
@@ -3660,7 +3675,7 @@ const BASE_CSS = `
 .queueActions { display: flex; gap: 2px; }
 .tinyIcon { width: 24px; height: 24px; border: none; background: transparent; color: var(--ink-soft, #85837A); border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .tinyIcon:disabled { opacity: 0.3; cursor: default; }
-.tinyIcon:hover:not(:disabled) { background: #fff; color: var(--ink, #21201C); }
+.tinyIcon:hover:not(:disabled) { background: var(--card); color: var(--ink, #21201C); }
 .newCatRow { display: flex; flex-direction: column; gap: 4px; margin-bottom: 20px; padding-bottom: 18px; border-bottom: 1px solid var(--line, #E4E1D6); }
 .backupRow { display: flex; gap: 10px; }
 .catList { display: flex; flex-direction: column; gap: 6px; }

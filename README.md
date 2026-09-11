@@ -1,18 +1,39 @@
-# Homework App — Netlify hosting
+# Lock In — Netlify hosting
 
-This is the same app, rebuilt to run on Netlify instead of GoDaddy/PHP/MySQL.
+**Lock In** — *Do the work. Get the W.* — is a shared family homework tracker.
 No database to set up — accounts and the shared homework list are stored in
 **Netlify Blobs**, which is built into every Netlify site automatically.
 
 ```
-public/index.html          — the app itself (unchanged, just points at /api/* now)
-netlify/functions/         — the backend, as small Node.js functions
+public/index.html          — the app itself
+public/favicon.png          — browser tab icon (transparent crosshair)
+public/apple-touch-icon.png — iOS home-screen icon (crosshair on black)
+public/icon-192.png, icon-512.png — Android/PWA home-screen icons
+public/icon-mark.png        — transparent crosshair, used as the in-app watermark
+public/logo-full.jpg        — full wordmark logo, shown on the login screen
+public/manifest.webmanifest — PWA metadata (name, icons, theme color)
+netlify/functions/          — the backend, as small Node.js functions
   register.js  login.js  logout.js  me.js  data.js
   _lib/auth.js             — session cookies, password hashing, family codes
-  _lib/store.js            — Netlify Blobs helpers
+  _lib/store.js             — Netlify Blobs helpers
 netlify.toml                — tells Netlify where the site & functions live
 package.json                 — the one dependency (@netlify/blobs)
 ```
+
+## Look & feel
+
+- **Dark / light mode** — a sun/moon toggle in the header. This is a
+  per-device preference (saved to that browser's local storage, defaulting
+  to the system's light/dark setting), not shared across the family — so
+  one person's phone doesn't force a mode on everyone else's.
+- **Neon accent** (`#C6FF00`) throughout, on either a near-black or a light
+  paper background depending on mode.
+  a large, translucent copy of the crosshair mark sits in the background of
+  every screen.
+- Completing an assignment or clearing out a whole class subject shows a
+  slang-flavored celebration ("W. 🎯", "Locked in. 🔥", "FULLY LOCKED IN. 🔒"
+  for clearing a subject entirely) instead of a generic "nice job."
+
 
 ## 1. Put this in a GitHub repo
 
@@ -23,7 +44,7 @@ package.json                 — the one dependency (@netlify/blobs)
    cd homework-app-netlify
    git init
    git add .
-   git commit -m "Homework app"
+   git commit -m "Lock In"
    git branch -M main
    git remote add origin https://github.com/YOUR-USERNAME/homework-app.git
    git push -u origin main
@@ -69,7 +90,7 @@ your site.
 ## 4. Try it
 
 Visit the `https://your-site-name.netlify.app` URL Netlify gives you. You
-should see the "Homework" welcome screen with **Log in** / **Sign up**.
+should see the "Lock In" login screen with **Log in** / **Sign up**.
 
 1. Sign up as a parent, choosing **Create a family** — you'll be shown a
    family code immediately.
@@ -85,9 +106,8 @@ should see the "Homework" welcome screen with **Log in** / **Sign up**.
 - Everyone has their own email/password login; everyone in the family
   shares one homework list. The family code is always visible again later
   under the account icon (top right of the app).
-- Tap the palette icon to pick a color scheme — School Colors, Boho
-  Neutral, Happy Kid Colors, or Colorblind Friendly. Whoever picks it sets
-  it for the whole family.
+- Tap the sun/moon icon to switch dark/light mode — this is per-device, not
+  shared with the rest of the family.
 
 ## Notes
 

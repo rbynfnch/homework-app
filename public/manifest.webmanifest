@@ -1,0 +1,12 @@
+{
+  "name": "Lock In — Do the work. Get the W.",
+  "short_name": "Lock In",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A0B07",
+  "theme_color": "#0A0B07",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
